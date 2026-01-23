@@ -7,27 +7,41 @@ import {
   ShoppingBag,
   ChevronLeft,
   ChevronRight,
-  Check,
   Truck,
   Shield,
   RotateCcw,
+  AlertCircle,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
+import ARModal from "@/components/ARModal";
 import { Button } from "@/components/ui/button";
 import { products } from "@/data/products";
+import { useARJewellery } from "@/hooks/useARJewellery";
 
+/**
+ * ProductDetail Page - Swiss Design with AR Integration
+ * 
+ * Features:
+ * - Clean grid layout with high contrast
+ * - Bold sans-serif typography
+ * - Prominent AR Virtual Try-On button
+ * - Dynamic AR model loading from backend
+ */
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const product = products.find((p) => p.id === id);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
 
+  // AR functionality hook
+  const { arSession, openARSession, closeARSession, getARModelUrl, dataError } = useARJewellery();
+
   if (!product) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Product not found</p>
+        <p className="text-lg font-semibold">Product not found</p>
       </div>
     );
   }
@@ -48,33 +62,48 @@ const ProductDetail = () => {
     );
   };
 
+  /**
+   * Handle AR Try-On button click.
+   * Gets the model URL from backend data and opens AR session.
+   */
+  const handleARTryOn = () => {
+    const modelUrl = getARModelUrl(product.id);
+    if (modelUrl) {
+      openARSession(modelUrl, product.name);
+    }
+  };
+
+  /**
+   * Handle AR try-on for recommended products
+   */
+  const handleRecommendedARTryOn = (productId: string) => {
+    const modelUrl = getARModelUrl(productId);
+    const productData = products.find(p => p.id === productId);
+    if (modelUrl && productData) {
+      openARSession(modelUrl, productData.name);
+    }
+  };
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-24 pb-16">
+      <main className="pt-20 pb-16">
         <div className="container mx-auto px-4">
-          {/* Breadcrumb */}
+          {/* Breadcrumb - Swiss Style */}
           <motion.nav
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex items-center gap-2 text-sm text-muted-foreground mb-8"
+            className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-8 pt-4"
           >
-            <Link to="/" className="hover:text-primary transition-colors">
+            <Link to="/" className="hover:text-foreground transition-colors uppercase tracking-wide">
               Home
             </Link>
             <span>/</span>
-            <Link to="/catalog" className="hover:text-primary transition-colors">
+            <Link to="/catalog" className="hover:text-foreground transition-colors uppercase tracking-wide">
               Collections
             </Link>
             <span>/</span>
-            <Link
-              to={`/catalog?category=${product.category}`}
-              className="hover:text-primary transition-colors"
-            >
-              {product.category}
-            </Link>
-            <span>/</span>
-            <span className="text-foreground">{product.name}</span>
+            <span className="text-foreground uppercase tracking-wide">{product.name}</span>
           </motion.nav>
 
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
@@ -82,11 +111,11 @@ const ProductDetail = () => {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.5 }}
               className="space-y-4"
             >
               {/* Main Image */}
-              <div className="relative aspect-square bg-secondary rounded-sm overflow-hidden">
+              <div className="relative aspect-square bg-secondary overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={selectedImageIndex}
@@ -95,7 +124,7 @@ const ProductDetail = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.2 }}
                     className="w-full h-full object-cover"
                   />
                 </AnimatePresence>
@@ -103,33 +132,33 @@ const ProductDetail = () => {
                 {/* Navigation Arrows */}
                 <button
                   onClick={prevImage}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background transition-colors"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-background hover:bg-secondary transition-colors"
                 >
                   <ChevronLeft size={20} />
                 </button>
                 <button
                   onClick={nextImage}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-background hover:bg-secondary transition-colors"
                 >
                   <ChevronRight size={20} />
                 </button>
 
                 {/* Image Counter */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-background/80 backdrop-blur-sm rounded-full text-sm">
+                <div className="absolute bottom-4 left-4 px-3 py-1 bg-background text-xs font-bold tracking-wide">
                   {selectedImageIndex + 1} / {product.images.length}
                 </div>
               </div>
 
               {/* Thumbnails */}
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 {product.images.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
-                    className={`relative w-20 h-20 rounded-sm overflow-hidden transition-all ${
+                    className={`relative w-20 h-20 overflow-hidden transition-all ${
                       selectedImageIndex === index
-                        ? "ring-2 ring-primary"
-                        : "opacity-70 hover:opacity-100"
+                        ? "ring-2 ring-foreground"
+                        : "opacity-60 hover:opacity-100"
                     }`}
                   >
                     <img
@@ -146,60 +175,64 @@ const ProductDetail = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
               className="lg:py-4"
             >
               {product.isNew && (
-                <span className="inline-block px-3 py-1 bg-gradient-gold text-primary-foreground text-xs font-medium tracking-wide rounded-sm mb-4">
-                  NEW ARRIVAL
+                <span className="inline-block px-3 py-1 bg-foreground text-background text-[10px] font-bold tracking-[0.15em] uppercase mb-4">
+                  New Arrival
                 </span>
               )}
 
-              <p className="text-muted-foreground text-sm uppercase tracking-wider mb-2">
+              <p className="text-muted-foreground text-xs font-semibold uppercase tracking-[0.15em] mb-2">
                 {product.category}
               </p>
 
-              <h1 className="font-serif text-3xl md:text-4xl text-foreground mb-4">
+              <h1 className="swiss-heading text-foreground mb-4">
                 {product.name}
               </h1>
 
-              <p className="text-2xl font-medium text-foreground mb-6">
+              <p className="text-2xl font-bold text-foreground mb-6 tracking-tight">
                 GH₵ {product.price.toLocaleString()}
               </p>
 
-              <p className="text-muted-foreground leading-relaxed mb-8">
+              <div className="swiss-grid-line mb-6" />
+
+              <p className="text-muted-foreground leading-relaxed mb-8 text-sm">
                 {product.description}
               </p>
 
-              {/* AR Try-On Button - PROMINENT */}
+              {/* AR Try-On Button - PROMINENT SWISS STYLE */}
               <motion.div
-                initial={{ scale: 0.95 }}
-                animate={{ scale: 1 }}
-                transition={{
-                  repeat: Infinity,
-                  repeatType: "reverse",
-                  duration: 2,
-                  ease: "easeInOut",
-                }}
                 className="mb-6"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
               >
                 <Button
+                  onClick={handleARTryOn}
                   size="lg"
-                  className="w-full bg-gradient-gold hover:opacity-90 text-primary-foreground py-6 text-base font-medium tracking-wide shimmer relative overflow-hidden group"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-7 text-sm font-bold tracking-[0.1em] uppercase ar-pulse relative overflow-hidden"
                 >
-                  <Camera size={22} className="mr-3" />
+                  <Camera size={20} className="mr-3" />
                   AR Virtual Try-On
-                  <span className="ml-2 px-2 py-0.5 bg-primary-foreground/20 rounded text-xs">
-                    NEW
+                  <span className="ml-3 px-2 py-0.5 bg-primary-foreground/20 text-[10px] font-bold">
+                    BETA
                   </span>
                 </Button>
+                {/* AR Error/Info Message */}
+                {(arSession.error || dataError) && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <AlertCircle size={14} />
+                    <span>{arSession.error || dataError}</span>
+                  </div>
+                )}
               </motion.div>
 
               {/* Action Buttons */}
-              <div className="flex gap-4 mb-8">
+              <div className="flex gap-3 mb-8">
                 <Button
                   size="lg"
-                  className="flex-1 bg-foreground hover:bg-foreground/90 text-background py-6"
+                  className="flex-1 bg-foreground hover:bg-foreground/90 text-background py-6 font-semibold tracking-wide"
                 >
                   <ShoppingBag size={18} className="mr-2" />
                   Add to Bag
@@ -208,8 +241,8 @@ const ProductDetail = () => {
                   variant="outline"
                   size="lg"
                   onClick={() => setIsFavorite(!isFavorite)}
-                  className={`px-6 py-6 border-border ${
-                    isFavorite ? "text-primary border-primary" : ""
+                  className={`px-6 py-6 border-2 ${
+                    isFavorite ? "text-primary border-primary" : "border-border"
                   }`}
                 >
                   <Heart
@@ -220,45 +253,39 @@ const ProductDetail = () => {
               </div>
 
               {/* Product Details */}
-              <div className="space-y-4 border-t border-border pt-8 mb-8">
-                <h3 className="font-serif text-lg">Product Details</h3>
+              <div className="space-y-4 border-t-2 border-foreground pt-8 mb-8">
+                <h3 className="text-sm font-bold uppercase tracking-[0.1em]">Product Details</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground">Material</p>
-                    <p className="font-medium">{product.material}</p>
+                    <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Material</p>
+                    <p className="font-semibold">{product.material}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Weight</p>
-                    <p className="font-medium">{product.weight}</p>
+                    <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Weight</p>
+                    <p className="font-semibold">{product.weight}</p>
                   </div>
                   {product.dimensions && (
                     <div>
-                      <p className="text-muted-foreground">Dimensions</p>
-                      <p className="font-medium">{product.dimensions}</p>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Dimensions</p>
+                      <p className="font-semibold">{product.dimensions}</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Trust Badges */}
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                    <Truck size={18} className="text-primary" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">Free Delivery</p>
+              {/* Trust Badges - Swiss Grid */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-secondary">
+                  <Truck size={20} className="mx-auto mb-2 text-primary" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wide">Free Delivery</p>
                 </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                    <Shield size={18} className="text-primary" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">Authentic</p>
+                <div className="text-center p-4 bg-secondary">
+                  <Shield size={20} className="mx-auto mb-2 text-primary" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wide">Authentic</p>
                 </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                    <RotateCcw size={18} className="text-primary" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">30-Day Return</p>
+                <div className="text-center p-4 bg-secondary">
+                  <RotateCcw size={20} className="mx-auto mb-2 text-primary" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wide">30-Day Return</p>
                 </div>
               </div>
             </motion.div>
@@ -266,23 +293,23 @@ const ProductDetail = () => {
 
           {/* Recommended Products */}
           {recommendedProducts.length > 0 && (
-            <section className="mt-20 pt-12 border-t border-border">
+            <section className="mt-20 pt-12 border-t-2 border-foreground">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
+                transition={{ duration: 0.5 }}
               >
-                <div className="text-center mb-12">
-                  <p className="text-primary text-sm tracking-[0.2em] uppercase mb-3">
+                <div className="mb-12">
+                  <p className="swiss-subheading text-primary mb-2">
                     AI-Powered Suggestions
                   </p>
-                  <h2 className="font-serif text-3xl text-foreground">
+                  <h2 className="swiss-heading text-foreground">
                     Recommended for You
                   </h2>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                   {recommendedProducts.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -293,6 +320,7 @@ const ProductDetail = () => {
                       hoverImage={product.images[1]}
                       category={product.category}
                       isNew={product.isNew}
+                      onARTryOn={handleRecommendedARTryOn}
                     />
                   ))}
                 </div>
@@ -302,8 +330,17 @@ const ProductDetail = () => {
         </div>
       </main>
       <Footer />
+
+      {/* AR Modal - Rendered via Portal */}
+      <ARModal
+        isOpen={arSession.isActive}
+        modelUrl={arSession.modelUrl}
+        productName={arSession.productName}
+        onClose={closeARSession}
+      />
     </div>
   );
 };
 
 export default ProductDetail;
+

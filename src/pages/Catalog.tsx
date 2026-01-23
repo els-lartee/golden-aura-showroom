@@ -4,61 +4,62 @@ import { SlidersHorizontal, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
+import ARModal from "@/components/ARModal";
 import { products, categories } from "@/data/products";
 import { Button } from "@/components/ui/button";
+import { useARJewellery } from "@/hooks/useARJewellery";
 
 const Catalog = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // AR functionality
+  const { arSession, openARSession, closeARSession, getARModelUrl } = useARJewellery();
 
   const filteredProducts =
     selectedCategory === "All"
       ? products
       : products.filter((product) => product.category === selectedCategory);
 
-  const priceRanges = [
-    { label: "Under GH₵2,000", min: 0, max: 2000 },
-    { label: "GH₵2,000 - GH₵4,000", min: 2000, max: 4000 },
-    { label: "GH₵4,000 - GH₵6,000", min: 4000, max: 6000 },
-    { label: "Above GH₵6,000", min: 6000, max: Infinity },
-  ];
+  const handleARTryOn = (productId: string) => {
+    const modelUrl = getARModelUrl(productId);
+    const product = products.find(p => p.id === productId);
+    if (modelUrl && product) {
+      openARSession(modelUrl, product.name);
+    }
+  };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-24 pb-16">
-        {/* Page Header */}
+      <main className="pt-20 pb-16">
         <div className="container mx-auto px-4 py-8">
+          {/* Page Header - Swiss Style */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
+            transition={{ duration: 0.5 }}
+            className="mb-12"
           >
-            <h1 className="font-serif text-4xl md:text-5xl text-foreground mb-4">
-              Our Collections
-            </h1>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Explore our curated selection of handcrafted jewellery pieces, 
-              each designed to make you shine.
-            </p>
+            <p className="swiss-subheading text-primary mb-2">Browse</p>
+            <h1 className="swiss-heading text-foreground mb-4">Our Collections</h1>
+            <div className="w-16 h-1 bg-foreground" />
           </motion.div>
 
           <div className="flex gap-8">
-            {/* Desktop Sidebar */}
-            <aside className="hidden lg:block w-64 flex-shrink-0">
+            {/* Desktop Sidebar - Swiss Minimal */}
+            <aside className="hidden lg:block w-56 flex-shrink-0">
               <div className="sticky top-28 space-y-8">
-                {/* Categories */}
                 <div>
-                  <h3 className="font-serif text-lg mb-4">Categories</h3>
-                  <ul className="space-y-2">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4">Categories</h3>
+                  <ul className="space-y-1">
                     {categories.map((category) => (
                       <li key={category}>
                         <button
                           onClick={() => setSelectedCategory(category)}
-                          className={`w-full text-left py-2 px-3 rounded-sm transition-colors ${
+                          className={`w-full text-left py-2 px-3 text-sm font-medium transition-colors ${
                             selectedCategory === category
-                              ? "bg-primary text-primary-foreground"
+                              ? "bg-foreground text-background"
                               : "text-foreground hover:bg-secondary"
                           }`}
                         >
@@ -68,44 +69,6 @@ const Catalog = () => {
                     ))}
                   </ul>
                 </div>
-
-                {/* Price Range */}
-                <div>
-                  <h3 className="font-serif text-lg mb-4">Price Range</h3>
-                  <ul className="space-y-2">
-                    {priceRanges.map((range) => (
-                      <li key={range.label}>
-                        <label className="flex items-center gap-3 cursor-pointer text-foreground hover:text-primary transition-colors">
-                          <input
-                            type="checkbox"
-                            className="w-4 h-4 accent-primary"
-                          />
-                          <span className="text-sm">{range.label}</span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Material */}
-                <div>
-                  <h3 className="font-serif text-lg mb-4">Material</h3>
-                  <ul className="space-y-2">
-                    {["18k Gold", "22k Gold", "Rose Gold", "Platinum"].map(
-                      (material) => (
-                        <li key={material}>
-                          <label className="flex items-center gap-3 cursor-pointer text-foreground hover:text-primary transition-colors">
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 accent-primary"
-                            />
-                            <span className="text-sm">{material}</span>
-                          </label>
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
               </div>
             </aside>
 
@@ -113,9 +76,9 @@ const Catalog = () => {
             <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
               <Button
                 onClick={() => setIsSidebarOpen(true)}
-                className="bg-foreground text-background shadow-lg px-6"
+                className="bg-foreground text-background shadow-lg px-6 font-bold text-xs tracking-wide uppercase"
               >
-                <SlidersHorizontal size={18} className="mr-2" />
+                <SlidersHorizontal size={16} className="mr-2" />
                 Filters
               </Button>
             </div>
@@ -135,61 +98,36 @@ const Catalog = () => {
                     initial={{ x: "-100%" }}
                     animate={{ x: 0 }}
                     exit={{ x: "-100%" }}
-                    transition={{ type: "tween", duration: 0.3 }}
-                    className="fixed left-0 top-0 bottom-0 w-80 bg-background z-50 p-6 overflow-y-auto lg:hidden"
+                    transition={{ type: "tween", duration: 0.2 }}
+                    className="fixed left-0 top-0 bottom-0 w-72 bg-background z-50 p-6 lg:hidden border-r-2 border-foreground"
                   >
                     <div className="flex justify-between items-center mb-8">
-                      <h2 className="font-serif text-xl">Filters</h2>
-                      <button
-                        onClick={() => setIsSidebarOpen(false)}
-                        className="p-2"
-                      >
-                        <X size={24} />
+                      <h2 className="text-sm font-bold uppercase tracking-[0.15em]">Filters</h2>
+                      <button onClick={() => setIsSidebarOpen(false)} className="p-2">
+                        <X size={20} />
                       </button>
                     </div>
-
-                    <div className="space-y-8">
-                      {/* Categories */}
-                      <div>
-                        <h3 className="font-serif text-lg mb-4">Categories</h3>
-                        <ul className="space-y-2">
-                          {categories.map((category) => (
-                            <li key={category}>
-                              <button
-                                onClick={() => {
-                                  setSelectedCategory(category);
-                                  setIsSidebarOpen(false);
-                                }}
-                                className={`w-full text-left py-2 px-3 rounded-sm transition-colors ${
-                                  selectedCategory === category
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-foreground hover:bg-secondary"
-                                }`}
-                              >
-                                {category}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* Price Range */}
-                      <div>
-                        <h3 className="font-serif text-lg mb-4">Price Range</h3>
-                        <ul className="space-y-2">
-                          {priceRanges.map((range) => (
-                            <li key={range.label}>
-                              <label className="flex items-center gap-3 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  className="w-4 h-4 accent-primary"
-                                />
-                                <span className="text-sm">{range.label}</span>
-                              </label>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4">Categories</h3>
+                      <ul className="space-y-1">
+                        {categories.map((category) => (
+                          <li key={category}>
+                            <button
+                              onClick={() => {
+                                setSelectedCategory(category);
+                                setIsSidebarOpen(false);
+                              }}
+                              className={`w-full text-left py-2 px-3 text-sm font-medium transition-colors ${
+                                selectedCategory === category
+                                  ? "bg-foreground text-background"
+                                  : "text-foreground hover:bg-secondary"
+                              }`}
+                            >
+                              {category}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </motion.aside>
                 </>
@@ -199,21 +137,18 @@ const Catalog = () => {
             {/* Product Grid */}
             <div className="flex-1">
               <div className="flex justify-between items-center mb-6">
-                <p className="text-muted-foreground text-sm">
-                  {filteredProducts.length} products
+                <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  {filteredProducts.length} Products
                 </p>
-                <select className="bg-secondary border border-border rounded-sm px-4 py-2 text-sm focus:outline-none focus:border-primary">
-                  <option>Sort by: Featured</option>
+                <select className="bg-secondary border-2 border-foreground px-4 py-2 text-xs font-bold tracking-wide focus:outline-none">
+                  <option>Featured</option>
                   <option>Price: Low to High</option>
                   <option>Price: High to Low</option>
                   <option>Newest First</option>
                 </select>
               </div>
 
-              <motion.div
-                layout
-                className="grid grid-cols-2 md:grid-cols-3 gap-6 md:gap-8"
-              >
+              <motion.div layout className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 <AnimatePresence mode="popLayout">
                   {filteredProducts.map((product) => (
                     <ProductCard
@@ -225,6 +160,7 @@ const Catalog = () => {
                       hoverImage={product.images[1]}
                       category={product.category}
                       isNew={product.isNew}
+                      onARTryOn={handleARTryOn}
                     />
                   ))}
                 </AnimatePresence>
@@ -234,8 +170,16 @@ const Catalog = () => {
         </div>
       </main>
       <Footer />
+
+      <ARModal
+        isOpen={arSession.isActive}
+        modelUrl={arSession.modelUrl}
+        productName={arSession.productName}
+        onClose={closeARSession}
+      />
     </div>
   );
 };
 
 export default Catalog;
+
