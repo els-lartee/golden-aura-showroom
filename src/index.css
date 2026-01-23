@@ -2,108 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap');
+/* Swiss Design Typography: Helvetica Neue + Clean Sans */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @layer base {
   :root {
-    --background: 40 33% 97%;
-    --foreground: 220 15% 20%;
+    /* Swiss Design: High contrast, clean whites and blacks with gold accents */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 8%;
 
-    --card: 40 30% 99%;
-    --card-foreground: 220 15% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
 
-    --popover: 40 30% 99%;
-    --popover-foreground: 220 15% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
 
-    --primary: 40 60% 50%;
-    --primary-foreground: 40 30% 99%;
+    --primary: 40 70% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 20% 94%;
-    --secondary-foreground: 220 15% 20%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 8%;
 
-    --muted: 40 15% 92%;
-    --muted-foreground: 220 10% 45%;
+    --muted: 0 0% 92%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 40 60% 50%;
-    --accent-foreground: 40 30% 99%;
+    --accent: 40 70% 45%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 40 30% 99%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 40 20% 88%;
-    --input: 40 20% 88%;
-    --ring: 40 60% 50%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 40 70% 45%;
 
-    --radius: 0.25rem;
+    --radius: 0;
 
-    /* Custom luxury tokens */
-    --gold: 40 60% 50%;
-    --gold-light: 40 50% 70%;
-    --gold-dark: 40 70% 35%;
-    --cream: 40 33% 97%;
-    --cream-dark: 40 25% 92%;
-    --charcoal: 220 15% 20%;
-    --charcoal-light: 220 10% 35%;
+    /* Swiss-inspired luxury tokens */
+    --gold: 40 70% 45%;
+    --gold-light: 40 60% 60%;
+    --gold-dark: 40 80% 35%;
+    --cream: 0 0% 98%;
+    --cream-dark: 0 0% 94%;
+    --charcoal: 0 0% 8%;
+    --charcoal-light: 0 0% 25%;
 
-    /* Gradients */
-    --gradient-gold: linear-gradient(135deg, hsl(40 60% 50%) 0%, hsl(40 70% 60%) 50%, hsl(40 50% 45%) 100%);
-    --gradient-shimmer: linear-gradient(90deg, transparent 0%, hsl(40 60% 70% / 0.3) 50%, transparent 100%);
+    /* Swiss Grid System Colors */
+    --swiss-red: 0 100% 45%;
+    --swiss-black: 0 0% 0%;
+    --swiss-white: 0 0% 100%;
 
-    --sidebar-background: 40 33% 97%;
-    --sidebar-foreground: 220 15% 20%;
-    --sidebar-primary: 40 60% 50%;
-    --sidebar-primary-foreground: 40 30% 99%;
-    --sidebar-accent: 40 20% 94%;
-    --sidebar-accent-foreground: 220 15% 20%;
-    --sidebar-border: 40 20% 88%;
-    --sidebar-ring: 40 60% 50%;
+    /* Gradients - Simplified for Swiss aesthetic */
+    --gradient-gold: linear-gradient(180deg, hsl(40 70% 50%) 0%, hsl(40 70% 40%) 100%);
+    --gradient-shimmer: linear-gradient(90deg, transparent 0%, hsl(40 70% 60% / 0.2) 50%, transparent 100%);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 8%;
+    --sidebar-primary: 40 70% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 8%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 40 70% 45%;
   }
 
   .dark {
-    --background: 220 20% 10%;
-    --foreground: 40 25% 92%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 96%;
 
-    --card: 220 18% 14%;
-    --card-foreground: 40 25% 92%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 220 18% 14%;
-    --popover-foreground: 40 25% 92%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 40 60% 55%;
-    --primary-foreground: 220 20% 10%;
+    --primary: 40 70% 50%;
+    --primary-foreground: 0 0% 4%;
 
-    --secondary: 220 15% 18%;
-    --secondary-foreground: 40 25% 92%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 96%;
 
-    --muted: 220 15% 22%;
-    --muted-foreground: 40 15% 60%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 40 60% 55%;
-    --accent-foreground: 220 20% 10%;
+    --accent: 40 70% 50%;
+    --accent-foreground: 0 0% 4%;
 
     --destructive: 0 62% 30%;
-    --destructive-foreground: 40 25% 92%;
+    --destructive-foreground: 0 0% 96%;
 
-    --border: 220 15% 22%;
-    --input: 220 15% 22%;
-    --ring: 40 60% 55%;
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 40 70% 50%;
 
-    --gold: 40 60% 55%;
-    --gold-light: 40 50% 65%;
-    --gold-dark: 40 70% 40%;
-    --cream: 40 25% 92%;
-    --cream-dark: 40 20% 85%;
-    --charcoal: 220 20% 10%;
-    --charcoal-light: 220 15% 25%;
+    --gold: 40 70% 50%;
+    --gold-light: 40 60% 60%;
+    --gold-dark: 40 80% 40%;
+    --cream: 0 0% 96%;
+    --cream-dark: 0 0% 88%;
+    --charcoal: 0 0% 4%;
+    --charcoal-light: 0 0% 20%;
 
-    --sidebar-background: 220 20% 10%;
-    --sidebar-foreground: 40 25% 92%;
-    --sidebar-primary: 40 60% 55%;
-    --sidebar-primary-foreground: 220 20% 10%;
-    --sidebar-accent: 220 15% 18%;
-    --sidebar-accent-foreground: 40 25% 92%;
-    --sidebar-border: 220 15% 22%;
-    --sidebar-ring: 40 60% 55%;
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 40 70% 50%;
+    --sidebar-primary-foreground: 0 0% 4%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 40 70% 50%;
   }
 }
 
@@ -114,30 +121,34 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    letter-spacing: -0.01em;
   }
 
+  /* Swiss Design: Bold, sans-serif headings with tight tracking */
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Playfair Display', serif;
+    font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
   }
 }
 
 @layer components {
+  /* Swiss Design: Clean, flat gold accent */
   .text-gradient-gold {
-    background: linear-gradient(135deg, hsl(40 60% 50%) 0%, hsl(40 70% 60%) 50%, hsl(40 50% 45%) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: hsl(40 70% 45%);
   }
 
   .bg-gradient-gold {
-    background: linear-gradient(135deg, hsl(40 60% 50%) 0%, hsl(40 70% 60%) 50%, hsl(40 50% 45%) 100%);
+    background: hsl(40 70% 45%);
   }
 
   .border-gold {
-    border-color: hsl(40 60% 50%);
+    border-color: hsl(40 70% 45%);
   }
 
+  /* Simplified shimmer for Swiss aesthetic */
   .shimmer {
     position: relative;
     overflow: hidden;
@@ -150,8 +161,8 @@
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent 0%, hsl(40 60% 70% / 0.2) 50%, transparent 100%);
-    animation: shimmer 2s infinite;
+    background: linear-gradient(90deg, transparent 0%, hsl(40 70% 60% / 0.15) 50%, transparent 100%);
+    animation: shimmer 3s infinite;
   }
 
   @keyframes shimmer {
@@ -159,13 +170,55 @@
     100% { left: 100%; }
   }
 
+  /* Swiss-inspired clean shadows */
   .luxury-shadow {
-    box-shadow: 0 4px 20px -2px hsl(40 60% 50% / 0.15),
-                0 2px 8px -2px hsl(220 15% 20% / 0.08);
+    box-shadow: 0 2px 16px -4px hsl(0 0% 0% / 0.08);
   }
 
   .luxury-shadow-lg {
-    box-shadow: 0 8px 40px -4px hsl(40 60% 50% / 0.2),
-                0 4px 16px -4px hsl(220 15% 20% / 0.1);
+    box-shadow: 0 4px 32px -8px hsl(0 0% 0% / 0.12);
+  }
+
+  /* Swiss Grid Typography Utilities */
+  .swiss-display {
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    text-transform: uppercase;
+  }
+
+  .swiss-heading {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .swiss-subheading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* Swiss Grid Lines */
+  .swiss-grid-line {
+    height: 1px;
+    background: hsl(var(--foreground));
+  }
+
+  /* AR Button Pulse Animation */
+  .ar-pulse {
+    animation: ar-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes ar-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 hsl(40 70% 45% / 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 12px hsl(40 70% 45% / 0);
+    }
   }
 }
