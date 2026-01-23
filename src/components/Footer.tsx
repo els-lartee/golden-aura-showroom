@@ -1,119 +1,114 @@
 import { Link } from "react-router-dom";
-import { Instagram, Facebook, Twitter, Mail } from "lucide-react";
+import { Instagram, Facebook, Twitter } from "lucide-react";
 
+/**
+ * Footer Component - Vogue Editorial Style
+ * 
+ * Features:
+ * - Refined editorial layout
+ * - Elegant serif branding
+ * - Sophisticated link styling
+ */
 const Footer = () => {
   return (
     <footer className="bg-foreground text-background">
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          {/* Brand */}
-          <div className="lg:col-span-1">
-            <h2 className="font-serif text-2xl mb-4">
-              <span className="text-gold">Golden</span> Aura
-            </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+      {/* Main Footer */}
+      <div className="container mx-auto px-6 md:px-12 py-20 md:py-24">
+        <div className="grid grid-cols-12 gap-10">
+          {/* Brand Column */}
+          <div className="col-span-12 md:col-span-4 lg:col-span-5">
+            <Link to="/" className="inline-block mb-6">
+              <h2 className="font-serif text-3xl md:text-4xl tracking-wide">
+                <span className="text-primary italic">Golden</span>
+                <span className="text-background ml-2">Aura</span>
+              </h2>
+            </Link>
+            <p className="vogue-body text-background/60 leading-relaxed mb-8 max-w-sm">
               Crafting timeless elegance since 2010. Each piece tells a story of 
               exceptional craftsmanship and enduring beauty.
             </p>
-            <div className="flex gap-4">
-              <a href="#" className="text-muted-foreground hover:text-gold transition-colors">
-                <Instagram size={20} />
+            <div className="flex gap-5">
+              <a href="#" className="text-background/50 hover:text-primary transition-colors duration-300">
+                <Instagram size={18} strokeWidth={1.5} />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-gold transition-colors">
-                <Facebook size={20} />
+              <a href="#" className="text-background/50 hover:text-primary transition-colors duration-300">
+                <Facebook size={18} strokeWidth={1.5} />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-gold transition-colors">
-                <Twitter size={20} />
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-gold transition-colors">
-                <Mail size={20} />
+              <a href="#" className="text-background/50 hover:text-primary transition-colors duration-300">
+                <Twitter size={18} strokeWidth={1.5} />
               </a>
             </div>
           </div>
 
-          {/* Collections */}
-          <div>
-            <h3 className="font-serif text-lg mb-4">Collections</h3>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <Link to="/catalog?category=rings" className="text-muted-foreground hover:text-gold transition-colors">
-                  Rings
-                </Link>
-              </li>
-              <li>
-                <Link to="/catalog?category=necklaces" className="text-muted-foreground hover:text-gold transition-colors">
-                  Necklaces
-                </Link>
-              </li>
-              <li>
-                <Link to="/catalog?category=earrings" className="text-muted-foreground hover:text-gold transition-colors">
-                  Earrings
-                </Link>
-              </li>
-              <li>
-                <Link to="/catalog?category=bracelets" className="text-muted-foreground hover:text-gold transition-colors">
-                  Bracelets
-                </Link>
-              </li>
+          {/* Links Columns */}
+          <div className="col-span-6 md:col-span-2 lg:col-span-2">
+            <h3 className="vogue-subheading text-[10px] text-background mb-6">Collections</h3>
+            <ul className="space-y-4">
+              {["Rings", "Necklaces", "Earrings", "Bracelets"].map((item) => (
+                <li key={item}>
+                  <Link
+                    to={`/catalog?category=${item.toLowerCase()}`}
+                    className="vogue-body text-background/60 hover:text-primary transition-colors duration-300"
+                  >
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Customer Care */}
-          <div>
-            <h3 className="font-serif text-lg mb-4">Customer Care</h3>
-            <ul className="space-y-3 text-sm">
-              <li>
-                <a href="#" className="text-muted-foreground hover:text-gold transition-colors">
-                  Contact Us
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-muted-foreground hover:text-gold transition-colors">
-                  Shipping & Returns
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-muted-foreground hover:text-gold transition-colors">
-                  Size Guide
-                </a>
-              </li>
-              <li>
-                <a href="#" className="text-muted-foreground hover:text-gold transition-colors">
-                  Care Instructions
-                </a>
-              </li>
+          <div className="col-span-6 md:col-span-2 lg:col-span-2">
+            <h3 className="vogue-subheading text-[10px] text-background mb-6">Customer Care</h3>
+            <ul className="space-y-4">
+              {["Contact Us", "Shipping", "Returns", "Size Guide"].map((item) => (
+                <li key={item}>
+                  <a
+                    href="#"
+                    className="vogue-body text-background/60 hover:text-primary transition-colors duration-300"
+                  >
+                    {item}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* Newsletter */}
-          <div>
-            <h3 className="font-serif text-lg mb-4">Stay Connected</h3>
-            <p className="text-muted-foreground text-sm mb-4">
-              Subscribe for exclusive offers and new collection previews.
+          <div className="col-span-12 md:col-span-4 lg:col-span-3">
+            <h3 className="vogue-subheading text-[10px] text-background mb-6">Newsletter</h3>
+            <p className="vogue-body text-background/60 mb-6">
+              Subscribe for exclusive previews and private sale access.
             </p>
-            <form className="flex flex-col gap-3">
+            <form className="space-y-4">
               <input
                 type="email"
                 placeholder="Your email address"
-                className="px-4 py-3 bg-charcoal-light border border-charcoal-light rounded-sm text-sm text-background placeholder:text-muted-foreground focus:outline-none focus:border-gold transition-colors"
+                className="w-full px-0 py-3 bg-transparent border-b border-background/30 focus:border-primary focus:outline-none transition-colors duration-300 vogue-body text-background placeholder:text-background/40"
               />
               <button
                 type="submit"
-                className="px-4 py-3 bg-gradient-gold text-primary-foreground text-sm font-medium rounded-sm hover:opacity-90 transition-opacity"
+                className="w-full py-4 bg-primary text-primary-foreground vogue-subheading text-[10px] hover:bg-primary/90 transition-colors duration-300"
               >
                 Subscribe
               </button>
             </form>
           </div>
         </div>
+      </div>
 
-        <div className="mt-16 pt-8 border-t border-charcoal-light flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-muted-foreground text-sm">
+      {/* Bottom Bar */}
+      <div className="border-t border-background/10">
+        <div className="container mx-auto px-6 md:px-12 py-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="vogue-subheading text-[9px] text-background/40">
             © 2024 Golden Aura Jewellery. All rights reserved.
           </p>
-          <div className="flex gap-6 text-sm text-muted-foreground">
-            <a href="#" className="hover:text-gold transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-gold transition-colors">Terms of Service</a>
+          <div className="flex gap-8">
+            <a href="#" className="vogue-subheading text-[9px] text-background/40 hover:text-primary transition-colors duration-300">
+              Privacy Policy
+            </a>
+            <a href="#" className="vogue-subheading text-[9px] text-background/40 hover:text-primary transition-colors duration-300">
+              Terms of Service
+            </a>
           </div>
         </div>
       </div>
