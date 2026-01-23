@@ -16,16 +16,17 @@ interface ProductCardProps {
   onFavoriteToggle?: () => void;
   onARTryOn?: (productId: string) => void;
   arEnabled?: boolean;
+  variant?: "default" | "large" | "wide";
 }
 
 /**
- * ProductCard Component - Swiss Design Style
+ * ProductCard Component - Vogue Editorial Style
  * 
  * Features:
- * - Clean, grid-based layout with sharp edges
- * - Bold typography with tight tracking
- * - High contrast colors
- * - Prominent "Try in AR" button that triggers AR experience
+ * - Refined serif typography
+ * - Elegant hover transitions
+ * - Editorial image treatment
+ * - Prominent AR try-on button
  */
 const ProductCard = ({
   id,
@@ -39,15 +40,18 @@ const ProductCard = ({
   onFavoriteToggle,
   onARTryOn,
   arEnabled = true,
+  variant = "default",
 }: ProductCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  const aspectRatio = variant === "wide" ? "aspect-[16/9]" : variant === "large" ? "aspect-[3/4]" : "aspect-[3/4]";
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.6 }}
       className="group"
     >
       <div
@@ -56,31 +60,38 @@ const ProductCard = ({
         onMouseLeave={() => setIsHovered(false)}
       >
         <Link to={`/product/${id}`} className="block">
-          <div className="relative aspect-[3/4] overflow-hidden bg-secondary">
+          <div className={`relative ${aspectRatio} overflow-hidden bg-secondary`}>
             {/* Main Image */}
             <motion.img
               src={image}
               alt={name}
-              className="absolute inset-0 w-full h-full object-cover"
-              animate={{ opacity: isHovered ? 0 : 1 }}
-              transition={{ duration: 0.3 }}
+              className="absolute inset-0 w-full h-full object-cover editorial-image"
+              animate={{ opacity: isHovered ? 0 : 1, scale: isHovered ? 1.02 : 1 }}
+              transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
             />
             
             {/* Hover Image */}
             <motion.img
               src={hoverImage}
               alt={`${name} - alternate view`}
-              className="absolute inset-0 w-full h-full object-cover"
-              animate={{ opacity: isHovered ? 1 : 0 }}
-              transition={{ duration: 0.3 }}
+              className="absolute inset-0 w-full h-full object-cover editorial-image"
+              animate={{ opacity: isHovered ? 1 : 0, scale: isHovered ? 1 : 1.02 }}
+              transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
             />
 
-            {/* New Badge - Swiss Style */}
+            {/* New Badge - Editorial Style */}
             {isNew && (
-              <div className="absolute top-0 left-0 px-3 py-1 bg-foreground text-background text-[10px] font-bold tracking-[0.15em] uppercase">
+              <div className="absolute top-4 left-4 px-3 py-1.5 bg-primary text-primary-foreground vogue-subheading text-[9px]">
                 New
               </div>
             )}
+
+            {/* Subtle gradient overlay on hover */}
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent"
+              animate={{ opacity: isHovered ? 1 : 0 }}
+              transition={{ duration: 0.4 }}
+            />
           </div>
         </Link>
 
@@ -90,50 +101,51 @@ const ProductCard = ({
             e.preventDefault();
             onFavoriteToggle?.();
           }}
-          className="absolute top-3 right-3 p-2 bg-background/90 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+          className="absolute top-4 right-4 p-2.5 bg-background/90 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-background"
         >
           <Heart
             size={16}
-            className={`transition-colors ${
+            strokeWidth={1.5}
+            className={`transition-colors duration-300 ${
               isFavorite ? "fill-primary text-primary" : "text-foreground"
             }`}
           />
         </button>
 
-        {/* AR Try-On Button - Prominent Swiss Style */}
+        {/* AR Try-On Button */}
         {arEnabled && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: isHovered ? 1 : 0, y: isHovered ? 0 : 10 }}
-            transition={{ duration: 0.2 }}
-            className="absolute bottom-3 left-3 right-3"
+            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="absolute bottom-4 left-4 right-4"
           >
             <Button
               onClick={(e) => {
                 e.preventDefault();
                 onARTryOn?.(id);
               }}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold tracking-wide text-xs py-2 ar-pulse"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground vogue-subheading text-[9px] py-3 ar-pulse"
               size="sm"
             >
-              <Camera size={14} className="mr-2" />
-              Try in AR
+              <Camera size={14} className="mr-2" strokeWidth={1.5} />
+              Virtual Try-On
             </Button>
           </motion.div>
         )}
       </div>
 
-      {/* Product Info - Swiss Typography */}
-      <div className="mt-4 space-y-1">
-        <p className="text-muted-foreground text-[10px] font-semibold uppercase tracking-[0.15em]">
+      {/* Product Info - Vogue Typography */}
+      <div className="mt-5 space-y-2">
+        <p className="vogue-subheading text-muted-foreground text-[9px]">
           {category}
         </p>
         <Link to={`/product/${id}`}>
-          <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors tracking-tight">
+          <h3 className="font-serif text-lg text-foreground group-hover:text-primary transition-colors duration-300 leading-tight">
             {name}
           </h3>
         </Link>
-        <p className="text-foreground font-bold text-sm">
+        <p className="vogue-subheading text-foreground text-[11px]">
           GH₵ {price.toLocaleString()}
         </p>
       </div>
@@ -142,4 +154,3 @@ const ProductCard = ({
 };
 
 export default ProductCard;
-

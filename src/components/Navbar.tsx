@@ -5,13 +5,12 @@ import { Search, ShoppingBag, Heart, User, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * Navbar Component - Swiss Design Style
+ * Navbar Component - Vogue Editorial Style
  * 
  * Features:
- * - Clean horizontal lines
- * - Bold uppercase typography
- * - Minimal ornamentation
- * - High contrast
+ * - Refined serif branding
+ * - Elegant, minimal navigation
+ * - Sophisticated hover states
  */
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -21,13 +20,13 @@ const Navbar = () => {
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Collections", path: "/catalog" },
-    { name: "New", path: "/catalog?filter=new" },
+    { name: "New Arrivals", path: "/catalog?filter=new" },
     { name: "Account", path: "/dashboard" },
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background border-b-2 border-foreground">
-      <nav className="container mx-auto px-4 py-4">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+      <nav className="container mx-auto px-6 md:px-12 py-5">
         <div className="flex items-center justify-between">
           {/* Mobile Menu Button */}
           <button
@@ -35,96 +34,91 @@ const Navbar = () => {
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Toggle menu"
           >
-            {isMenuOpen ? <X size={24} strokeWidth={2} /> : <Menu size={24} strokeWidth={2} />}
+            {isMenuOpen ? <X size={22} strokeWidth={1.5} /> : <Menu size={22} strokeWidth={1.5} />}
           </button>
 
-          {/* Logo - Swiss Bold */}
-          <Link to="/" className="flex-shrink-0">
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight uppercase">
-              <span className="text-primary">Golden</span>
-              <span className="text-foreground ml-1">Aura</span>
+          {/* Logo - Vogue Editorial Style */}
+          <Link to="/" className="flex-shrink-0 group">
+            <h1 className="font-serif text-2xl md:text-3xl tracking-wide">
+              <span className="text-primary font-light italic">Golden</span>
+              <span className="text-foreground font-normal ml-2">Aura</span>
             </h1>
           </Link>
 
-          {/* Desktop Navigation - Swiss Style */}
-          <ul className="hidden lg:flex items-center gap-8">
+          {/* Desktop Navigation */}
+          <ul className="hidden lg:flex items-center gap-10">
             {navLinks.map((link) => (
               <li key={link.path}>
                 <Link
                   to={link.path}
-                  className={`relative text-xs font-bold tracking-[0.15em] uppercase transition-colors hover:text-primary ${
+                  className={`relative vogue-subheading text-[10px] transition-colors duration-300 vogue-link ${
                     location.pathname === link.path
                       ? "text-primary"
-                      : "text-foreground"
+                      : "text-foreground/70 hover:text-foreground"
                   }`}
                 >
                   {link.name}
-                  {location.pathname === link.path && (
-                    <motion.div
-                      layoutId="navbar-indicator"
-                      className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary"
-                    />
-                  )}
                 </Link>
               </li>
             ))}
           </ul>
 
           {/* Action Icons */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="hover:text-primary transition-colors"
+              className="hover:text-primary transition-colors duration-300"
               onClick={() => setIsSearchOpen(!isSearchOpen)}
             >
-              <Search size={20} strokeWidth={2} />
+              <Search size={18} strokeWidth={1.5} />
             </Button>
             <Link to="/dashboard">
               <Button
                 variant="ghost"
                 size="icon"
-                className="hover:text-primary transition-colors"
+                className="hover:text-primary transition-colors duration-300"
               >
-                <Heart size={20} strokeWidth={2} />
+                <Heart size={18} strokeWidth={1.5} />
               </Button>
             </Link>
             <Link to="/dashboard">
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden md:flex hover:text-primary transition-colors"
+                className="hidden md:flex hover:text-primary transition-colors duration-300"
               >
-                <User size={20} strokeWidth={2} />
+                <User size={18} strokeWidth={1.5} />
               </Button>
             </Link>
             <Button
               variant="ghost"
               size="icon"
-              className="relative hover:text-primary transition-colors"
+              className="relative hover:text-primary transition-colors duration-300"
             >
-              <ShoppingBag size={20} strokeWidth={2} />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+              <ShoppingBag size={18} strokeWidth={1.5} />
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-medium flex items-center justify-center">
                 0
               </span>
             </Button>
           </div>
         </div>
 
-        {/* Search Bar - Swiss Minimal */}
+        {/* Search Bar */}
         <AnimatePresence>
           {isSearchOpen && (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               className="overflow-hidden"
             >
-              <div className="pt-4">
+              <div className="pt-5">
                 <input
                   type="text"
-                  placeholder="Search..."
-                  className="w-full px-4 py-3 bg-secondary border-2 border-foreground focus:outline-none focus:border-primary transition-colors text-sm font-medium tracking-wide"
+                  placeholder="Search collections..."
+                  className="w-full px-0 py-4 bg-transparent border-b border-foreground/20 focus:border-primary focus:outline-none transition-colors duration-300 font-serif text-lg italic placeholder:text-muted-foreground/50"
                   autoFocus
                 />
               </div>
@@ -139,23 +133,29 @@ const Navbar = () => {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
               className="lg:hidden overflow-hidden"
             >
-              <ul className="pt-4 pb-2 space-y-1 border-t-2 border-foreground mt-4">
-                {navLinks.map((link) => (
-                  <li key={link.path}>
+              <ul className="pt-6 pb-4 space-y-1 border-t border-border mt-5">
+                {navLinks.map((link, index) => (
+                  <motion.li
+                    key={link.path}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
                     <Link
                       to={link.path}
                       onClick={() => setIsMenuOpen(false)}
-                      className={`block py-3 text-xs font-bold tracking-[0.15em] uppercase transition-colors ${
+                      className={`block py-4 font-serif text-xl transition-colors duration-300 ${
                         location.pathname === link.path
                           ? "text-primary"
-                          : "text-foreground"
+                          : "text-foreground/70"
                       }`}
                     >
                       {link.name}
                     </Link>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             </motion.div>
@@ -167,4 +167,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-
