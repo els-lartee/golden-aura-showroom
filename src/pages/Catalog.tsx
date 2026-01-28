@@ -7,14 +7,12 @@ import ProductCard from "@/components/ProductCard";
 import ARModal from "@/components/ARModal";
 import { products, categories } from "@/data/products";
 import { Button } from "@/components/ui/button";
-import { useARJewellery } from "@/hooks/useARJewellery";
 
 const Catalog = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
-  // AR functionality
-  const { arSession, openARSession, closeARSession, getARModelUrl } = useARJewellery();
+  const [isTryOnOpen, setIsTryOnOpen] = useState(false);
+  const [activeProductName, setActiveProductName] = useState<string | null>(null);
 
   const filteredProducts =
     selectedCategory === "All"
@@ -22,10 +20,10 @@ const Catalog = () => {
       : products.filter((product) => product.category === selectedCategory);
 
   const handleARTryOn = (productId: string) => {
-    const modelUrl = getARModelUrl(productId);
-    const product = products.find(p => p.id === productId);
-    if (modelUrl && product) {
-      openARSession(modelUrl, product.name);
+    const product = products.find((p) => p.id === productId);
+    if (product) {
+      setActiveProductName(product.name);
+      setIsTryOnOpen(true);
     }
   };
 
@@ -172,10 +170,10 @@ const Catalog = () => {
       <Footer />
 
       <ARModal
-        isOpen={arSession.isActive}
-        modelUrl={arSession.modelUrl}
-        productName={arSession.productName}
-        onClose={closeARSession}
+        isOpen={isTryOnOpen}
+        modelUrl="/ring.glb"
+        productName={activeProductName}
+        onClose={() => setIsTryOnOpen(false)}
       />
     </div>
   );

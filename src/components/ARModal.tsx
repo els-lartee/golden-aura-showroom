@@ -1,13 +1,13 @@
-import { createPortal } from 'react-dom';
-import ARTryOn from './ARTryOn';
+import { createPortal } from "react-dom";
+import VirtualTryOn from "@/components/VirtualTryOn";
 
 /**
  * Props for ARModal component
  */
 interface ARModalProps {
   isOpen: boolean;
-  modelUrl: string | null;
-  productName: string | null;
+  modelUrl?: string | null;
+  productName?: string | null;
   onClose: () => void;
 }
 
@@ -23,18 +23,21 @@ interface ARModalProps {
  */
 const ARModal = ({ isOpen, modelUrl, productName, onClose }: ARModalProps) => {
   // Don't render if not open or missing required data
-  if (!isOpen || !modelUrl || !productName) {
+  if (!isOpen) {
     return null;
   }
 
   // Render in portal for fullscreen z-index support
   return createPortal(
-    <ARTryOn
-      modelUrl={modelUrl}
-      productName={productName}
-      onClose={onClose}
-    />,
-    document.body
+    <div className="fixed inset-0 z-[9999] bg-black">
+      <VirtualTryOn
+        modelUrl={modelUrl || "/ring.glb"}
+        productName={productName || "AR Try-On"}
+        onClose={onClose}
+        className="h-full w-full rounded-none"
+      />
+    </div>,
+    document.body,
   );
 };
 
