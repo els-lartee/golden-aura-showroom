@@ -109,7 +109,7 @@ const HeroSection = () => {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="border border-background/50 text-background hover:bg-background hover:text-foreground px-10 py-7 vogue-subheading text-[11px] transition-all duration-300"
+                    className="border-2 border-background bg-transparent text-background hover:bg-background hover:text-foreground px-10 py-7 vogue-subheading text-[11px] transition-all duration-300"
                   >
                     New Arrivals
                   </Button>
