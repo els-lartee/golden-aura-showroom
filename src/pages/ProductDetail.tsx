@@ -10,7 +10,6 @@ import {
   Truck,
   Shield,
   RotateCcw,
-  AlertCircle,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -18,7 +17,6 @@ import ProductCard from "@/components/ProductCard";
 import ARModal from "@/components/ARModal";
 import { Button } from "@/components/ui/button";
 import { products } from "@/data/products";
-import { useARJewellery } from "@/hooks/useARJewellery";
 
 /**
  * ProductDetail Page - Swiss Design with AR Integration
@@ -34,9 +32,8 @@ const ProductDetail = () => {
   const product = products.find((p) => p.id === id);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
-
-  // AR functionality hook
-  const { arSession, openARSession, closeARSession, getARModelUrl, dataError } = useARJewellery();
+  const [isTryOnOpen, setIsTryOnOpen] = useState(false);
+  const [activeProductName, setActiveProductName] = useState<string | null>(null);
 
   if (!product) {
     return (
@@ -64,23 +61,20 @@ const ProductDetail = () => {
 
   /**
    * Handle AR Try-On button click.
-   * Gets the model URL from backend data and opens AR session.
    */
   const handleARTryOn = () => {
-    const modelUrl = getARModelUrl(product.id);
-    if (modelUrl) {
-      openARSession(modelUrl, product.name);
-    }
+    setActiveProductName(product.name);
+    setIsTryOnOpen(true);
   };
 
   /**
    * Handle AR try-on for recommended products
    */
   const handleRecommendedARTryOn = (productId: string) => {
-    const modelUrl = getARModelUrl(productId);
     const productData = products.find(p => p.id === productId);
-    if (modelUrl && productData) {
-      openARSession(modelUrl, productData.name);
+    if (productData) {
+      setActiveProductName(productData.name);
+      setIsTryOnOpen(true);
     }
   };
 
@@ -219,13 +213,6 @@ const ProductDetail = () => {
                     BETA
                   </span>
                 </Button>
-                {/* AR Error/Info Message */}
-                {(arSession.error || dataError) && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                    <AlertCircle size={14} />
-                    <span>{arSession.error || dataError}</span>
-                  </div>
-                )}
               </motion.div>
 
               {/* Action Buttons */}
@@ -333,10 +320,10 @@ const ProductDetail = () => {
 
       {/* AR Modal - Rendered via Portal */}
       <ARModal
-        isOpen={arSession.isActive}
-        modelUrl={arSession.modelUrl}
-        productName={arSession.productName}
-        onClose={closeARSession}
+        isOpen={isTryOnOpen}
+        modelUrl="/ring.glb"
+        productName={activeProductName}
+        onClose={() => setIsTryOnOpen(false)}
       />
     </div>
   );

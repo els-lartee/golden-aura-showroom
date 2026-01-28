@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Camera } from "lucide-react";
@@ -28,26 +28,28 @@ interface ProductCardProps {
  * - Editorial image treatment
  * - Prominent AR try-on button
  */
-const ProductCard = ({
-  id,
-  name,
-  price,
-  image,
-  hoverImage,
-  category,
-  isNew = false,
-  isFavorite = false,
-  onFavoriteToggle,
-  onARTryOn,
-  arEnabled = true,
-  variant = "default",
-}: ProductCardProps) => {
+const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(
+  ({
+    id,
+    name,
+    price,
+    image,
+    hoverImage,
+    category,
+    isNew = false,
+    isFavorite = false,
+    onFavoriteToggle,
+    onARTryOn,
+    arEnabled = true,
+    variant = "default",
+  }: ProductCardProps, ref) => {
   const [isHovered, setIsHovered] = useState(false);
 
   const aspectRatio = variant === "wide" ? "aspect-[16/9]" : variant === "large" ? "aspect-[3/4]" : "aspect-[3/4]";
 
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0 }}
       whileInView={{ opacity: 1 }}
       viewport={{ once: true, margin: "-50px" }}
@@ -151,6 +153,8 @@ const ProductCard = ({
       </div>
     </motion.div>
   );
-};
+});
+
+ProductCard.displayName = "ProductCard";
 
 export default ProductCard;
