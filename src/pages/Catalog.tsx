@@ -9,19 +9,27 @@ import ARModal from "@/components/ARModal";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
 import { getProductCategory, getProductImages } from "@/lib/productAdapters";
-import type { ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
+import { trackEventSafe } from "@/hooks/useAnalytics";
+import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
+import { useMe } from "@/hooks/useAuth";
 
 const Catalog = () => {
+  const [selectedCollection, setSelectedCollection] = useState("All");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedTag, setSelectedTag] = useState("All");
   const [selectedSort, setSelectedSort] = useState("featured");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
+  const { data: me } = useMe();
 
   const { data: collections = [] } = useQuery<ApiCollection[]>({
     queryKey: ["collections"],
     queryFn: () => apiClient.get<ApiCollection[]>("/collections/"),
+  });
+  const { data: categories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ["categories"],
+    queryFn: () => apiClient.get<ApiCategory[]>("/categories/"),
   });
   const { data: tags = [] } = useQuery<ApiTag[]>({
     queryKey: ["tags"],
@@ -36,22 +44,31 @@ const Catalog = () => {
   }, [selectedSort]);
 
   const { data: products = [], isLoading } = useQuery<ApiProduct[]>({
-    queryKey: ["products", selectedCategory, selectedTag, sortParam],
+    queryKey: ["products", selectedCollection, selectedCategory, selectedTag, sortParam],
     queryFn: () =>
       apiClient.get<ApiProduct[]>("/products/", {
-        collection: selectedCategory === "All" ? undefined : selectedCategory,
+        collection: selectedCollection === "All" ? undefined : selectedCollection,
+        category: selectedCategory === "All" ? undefined : selectedCategory,
         tag: selectedTag === "All" ? undefined : selectedTag,
         sort: sortParam,
       }),
   });
 
-  const categories = useMemo(() => {
+  const collectionOptions = useMemo(() => {
     const base = collections.map((collection) => ({
       label: collection.name,
       value: String(collection.id),
     }));
     return [{ label: "All", value: "All" }, ...base];
   }, [collections]);
+
+  const categoryOptions = useMemo(() => {
+    const base = categories.map((category) => ({
+      label: category.name,
+      value: String(category.id),
+    }));
+    return [{ label: "All", value: "All" }, ...base];
+  }, [categories]);
 
   const tagOptions = useMemo(() => {
     const base = tags.map((tag) => ({ label: tag.name, value: String(tag.id) }));
@@ -64,6 +81,14 @@ const Catalog = () => {
       setActiveProductName(product.title);
       setIsTryOnOpen(true);
     }
+  };
+
+  const handleProductClick = (productId: string) => {
+    trackEventSafe({
+      event_type: "click",
+      product: Number(productId),
+      user: me?.user?.id,
+    });
   };
 
   return (
@@ -88,9 +113,28 @@ const Catalog = () => {
             <aside className="hidden lg:block w-56 flex-shrink-0">
               <div className="sticky top-28 space-y-8">
                 <div>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4">Collections</h3>
+                  <ul className="space-y-1">
+                    {collectionOptions.map((collection) => (
+                      <li key={collection.value}>
+                        <button
+                          onClick={() => setSelectedCollection(collection.value)}
+                          className={`w-full text-left py-2 px-3 text-sm font-medium transition-colors ${
+                            selectedCollection === collection.value
+                              ? "bg-foreground text-background"
+                              : "text-foreground hover:bg-secondary"
+                          }`}
+                        >
+                          {collection.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
                   <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4">Categories</h3>
                   <ul className="space-y-1">
-                    {categories.map((category) => (
+                    {categoryOptions.map((category) => (
                       <li key={category.value}>
                         <button
                           onClick={() => setSelectedCategory(category.value)}
@@ -164,9 +208,31 @@ const Catalog = () => {
                       </button>
                     </div>
                     <div>
+                      <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4">Collections</h3>
+                      <ul className="space-y-1">
+                        {collectionOptions.map((collection) => (
+                          <li key={collection.value}>
+                            <button
+                              onClick={() => {
+                                setSelectedCollection(collection.value);
+                                setIsSidebarOpen(false);
+                              }}
+                              className={`w-full text-left py-2 px-3 text-sm font-medium transition-colors ${
+                                selectedCollection === collection.value
+                                  ? "bg-foreground text-background"
+                                  : "text-foreground hover:bg-secondary"
+                              }`}
+                            >
+                              {collection.label}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="mt-6">
                       <h3 className="text-xs font-bold uppercase tracking-[0.15em] mb-4">Categories</h3>
                       <ul className="space-y-1">
-                        {categories.map((category) => (
+                        {categoryOptions.map((category) => (
                           <li key={category.value}>
                             <button
                               onClick={() => {
@@ -234,7 +300,7 @@ const Catalog = () => {
                 <AnimatePresence mode="popLayout">
                   {products.map((product) => {
                     const images = getProductImages(product);
-                    const category = getProductCategory(product, collections);
+                    const category = getProductCategory(product, categories, collections);
                     const price = Number(product.base_price);
                     return (
                     <ProductCard
@@ -247,6 +313,7 @@ const Catalog = () => {
                       category={category}
                       isNew={product.is_featured}
                       onARTryOn={handleARTryOn}
+                      onProductClick={handleProductClick}
                     />
                     );
                   })}

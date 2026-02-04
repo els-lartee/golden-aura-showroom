@@ -5,10 +5,18 @@ export type ApiCollection = {
   description?: string;
 };
 
+export type ApiCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+};
+
 export type ApiProductMedia = {
   id: number;
   product: number;
   url: string;
+  file?: string | null;
   media_type: "image" | "video" | "model";
   alt_text?: string;
   sort_order: number;
@@ -34,6 +42,7 @@ export type ApiProduct = {
   base_price: string;
   currency: string;
   is_featured: boolean;
+  category?: number | null;
   collections: number[];
   tags?: number[];
   media: ApiProductMedia[];

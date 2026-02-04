@@ -15,6 +15,7 @@ interface ProductCardProps {
   isFavorite?: boolean;
   onFavoriteToggle?: () => void;
   onARTryOn?: (productId: string) => void;
+  onProductClick?: (productId: string) => void;
   arEnabled?: boolean;
   variant?: "default" | "large" | "wide";
 }
@@ -40,6 +41,7 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(
     isFavorite = false,
     onFavoriteToggle,
     onARTryOn,
+    onProductClick,
     arEnabled = true,
     variant = "default",
   }: ProductCardProps, ref) => {
@@ -61,7 +63,11 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <Link to={`/product/${id}`} className="block">
+        <Link
+          to={`/product/${id}`}
+          className="block"
+          onClick={() => onProductClick?.(id)}
+        >
           <div className={`relative ${aspectRatio} overflow-hidden bg-secondary`}>
             {/* Main Image */}
             <motion.img
@@ -142,7 +148,7 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(
         <p className="vogue-subheading text-muted-foreground text-[9px]">
           {category}
         </p>
-        <Link to={`/product/${id}`}>
+        <Link to={`/product/${id}`} onClick={() => onProductClick?.(id)}>
           <h3 className="font-serif text-lg text-foreground group-hover:text-primary transition-colors duration-300 leading-tight">
             {name}
           </h3>

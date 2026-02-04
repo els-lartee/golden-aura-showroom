@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Heart, User, Menu, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useLogout, useMe } from "@/hooks/useAuth";
 import CartDrawer from "@/components/CartDrawer";
+import { promotionsApi } from "@/lib/promotions";
 
 /**
  * Navbar Component - Vogue Editorial Style
@@ -21,6 +23,11 @@ const Navbar = () => {
   const { data: me } = useMe();
   const logout = useLogout();
   const isAuthenticated = Boolean(me?.user);
+  const { data: promotions = [] } = useQuery({
+    queryKey: ["active-promotions"],
+    queryFn: promotionsApi.activePromotions,
+  });
+  const activePromotion = promotions[0];
 
   const navLinks = [
     { name: "Home", path: "/" },
@@ -32,6 +39,22 @@ const Navbar = () => {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+      {activePromotion && (
+        <div className="bg-foreground text-background text-[10px] uppercase tracking-[0.2em] py-2">
+          <div className="container mx-auto px-6 md:px-12 flex items-center justify-between">
+            <span className="text-primary">Offer</span>
+            <span className="text-center flex-1">
+              {activePromotion.name}
+              {activePromotion.description ? ` — ${activePromotion.description}` : ""}
+            </span>
+            <span className="text-primary">
+              {activePromotion.discount_type === "percent"
+                ? `${activePromotion.value}% off`
+                : `₦${activePromotion.value} off`}
+            </span>
+          </div>
+        </div>
+      )}
       <nav className="container mx-auto px-6 md:px-12 py-5">
         <div className="flex items-center justify-between">
           {/* Mobile Menu Button */}

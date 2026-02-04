@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { useCart } from "@/hooks/useCart";
 import { useCheckout, usePaymentInit, usePaymentVerify } from "@/hooks/useCheckout";
 import { useMe } from "@/hooks/useAuth";
+import { promotionsApi, type CouponValidation } from "@/lib/promotions";
+import { useToast } from "@/hooks/use-toast";
 
 const Checkout = () => {
   const { data: cart } = useCart();
@@ -15,8 +17,12 @@ const Checkout = () => {
   const checkout = useCheckout();
   const paymentInit = usePaymentInit();
   const paymentVerify = usePaymentVerify();
+  const { toast } = useToast();
   const [paymentReference, setPaymentReference] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [formState, setFormState] = useState({
     guest_email: "",
     shipping_name: "",
@@ -51,14 +57,43 @@ const Checkout = () => {
       currency: "NGN",
     };
 
-    const order = await checkout.mutateAsync(payload);
-    const payment = await paymentInit.mutateAsync({
-      order: order.id,
-      amount: order.total,
-      currency: order.currency,
-    });
-    setPaymentReference(payment.reference);
-    setPaymentStatus(payment.status);
+    try {
+      const order = await checkout.mutateAsync(payload);
+      const payment = await paymentInit.mutateAsync({
+        order: order.id,
+        amount: order.total,
+        currency: order.currency,
+      });
+      setPaymentReference(payment.reference);
+      setPaymentStatus(payment.status);
+    } catch (error) {
+      const message = (error as { message?: string })?.message || "Checkout failed";
+      toast({
+        title: "Checkout failed",
+        description: message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCouponApply = async () => {
+    if (!couponCode.trim()) return;
+    setIsValidatingCoupon(true);
+    try {
+      const coupon = await promotionsApi.validateCoupon(couponCode.trim());
+      setAppliedCoupon(coupon);
+      toast({ title: "Coupon applied", description: `${coupon.code} is valid.` });
+    } catch (error) {
+      const message = (error as { message?: string })?.message || "Invalid coupon";
+      setAppliedCoupon(null);
+      toast({
+        title: "Coupon invalid",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidatingCoupon(false);
+    }
   };
 
   return (
@@ -230,6 +265,33 @@ const Checkout = () => {
                 <p className="text-sm text-muted-foreground mb-6">
                   Total Quantity: {orderTotal}
                 </p>
+                <div className="mb-6 space-y-3">
+                  <label className="block text-xs font-semibold uppercase tracking-wide">
+                    Coupon code
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponCode}
+                      onChange={(event) => setCouponCode(event.target.value)}
+                      placeholder="WELCOME10"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCouponApply}
+                      disabled={isValidatingCoupon}
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                  {appliedCoupon && (
+                    <p className="text-xs text-muted-foreground">
+                      Applied {appliedCoupon.code} — {appliedCoupon.discount_type === "percent"
+                        ? `${appliedCoupon.value}%`
+                        : `₦${appliedCoupon.value}`}
+                    </p>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Pricing details will update once Paystack is integrated.
                 </p>

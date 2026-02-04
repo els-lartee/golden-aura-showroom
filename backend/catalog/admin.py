@@ -1,10 +1,16 @@
 from django.contrib import admin
 
-from catalog.models import Collection, Product, ProductMedia, ProductVariant
+from catalog.models import Category, Collection, Product, ProductMedia, ProductVariant
 
 
 @admin.register(Collection)
 class CollectionAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug", "is_active")
+    prepopulated_fields = {"slug": ("name",)}
+
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "slug", "is_active")
     prepopulated_fields = {"slug": ("name",)}
 

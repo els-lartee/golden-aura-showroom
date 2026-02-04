@@ -84,6 +84,39 @@ const apiFetch = async <T>(
   return response.json() as Promise<T>;
 };
 
+const apiUpload = async <T>(
+  path: string,
+  body: FormData,
+  method: "POST" | "PUT" | "PATCH" = "POST"
+): Promise<T> => {
+  const csrfToken = await ensureCsrfCookie();
+  const response = await fetch(buildUrl(path), {
+    method,
+    credentials: "include",
+    headers: {
+      ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    let message = "Request failed";
+    try {
+      const data = await response.json();
+      message = data?.detail || message;
+    } catch {
+      message = response.statusText || message;
+    }
+    throw { message, status: response.status } as ApiError;
+  }
+
+  if (response.status === 204) {
+    return {} as T;
+  }
+
+  return response.json() as Promise<T>;
+};
+
 export const apiClient = {
   get: <T>(path: string, params?: Record<string, string | number | undefined>) =>
     apiFetch<T>(path, { method: "GET", params }),
@@ -91,6 +124,8 @@ export const apiClient = {
   put: <T>(path: string, body?: unknown) => apiFetch<T>(path, { method: "PUT", body }),
   patch: <T>(path: string, body?: unknown) => apiFetch<T>(path, { method: "PATCH", body }),
   delete: <T>(path: string) => apiFetch<T>(path, { method: "DELETE" }),
+  upload: <T>(path: string, body: FormData, method: "POST" | "PUT" | "PATCH" = "POST") =>
+    apiUpload<T>(path, body, method),
 };
 
 export default API_BASE_URL;

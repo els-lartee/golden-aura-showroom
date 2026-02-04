@@ -1,9 +1,11 @@
 from rest_framework import permissions, viewsets
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from catalog.models import Collection, Product, ProductMedia, ProductVariant, Tag
+from catalog.models import Category, Collection, Product, ProductMedia, ProductVariant, Tag
 from catalog.serializers import (
+    CategorySerializer,
     CollectionSerializer,
     ProductMediaSerializer,
     ProductSerializer,
@@ -17,8 +19,15 @@ class CollectionViewSet(viewsets.ModelViewSet):
     serializer_class = CollectionSerializer
 
 
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().prefetch_related("variants", "media", "collections")
+    queryset = Product.objects.all().prefetch_related("variants", "media", "collections").select_related(
+        "category"
+    )
     serializer_class = ProductSerializer
 
     def get_queryset(self):
@@ -26,6 +35,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         query = self.request.query_params.get("query")
         collection = self.request.query_params.get("collection")
         tag = self.request.query_params.get("tag")
+        category = self.request.query_params.get("category")
         price_min = self.request.query_params.get("price_min")
         price_max = self.request.query_params.get("price_max")
         sort = self.request.query_params.get("sort")
@@ -36,6 +46,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(collections__id=collection)
         if tag:
             queryset = queryset.filter(tags__id=tag)
+        if category:
+            queryset = queryset.filter(category_id=category)
         if price_min:
             queryset = queryset.filter(base_price__gte=price_min)
         if price_max:
@@ -54,6 +66,7 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
 class ProductMediaViewSet(viewsets.ModelViewSet):
     queryset = ProductMedia.objects.select_related("product")
     serializer_class = ProductMediaSerializer
+    parser_classes = [MultiPartParser, FormParser]
 
 
 class TagViewSet(viewsets.ModelViewSet):

@@ -1,5 +1,9 @@
 import { Link } from "react-router-dom";
 import { Instagram, Facebook, Twitter } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+
+import { apiClient } from "@/lib/api";
+import type { ApiCategory } from "@/lib/types";
 
 /**
  * Footer Component - Vogue Editorial Style
@@ -10,6 +14,20 @@ import { Instagram, Facebook, Twitter } from "lucide-react";
  * - Sophisticated link styling
  */
 const Footer = () => {
+  const { data: categories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ["categories"],
+    queryFn: () => apiClient.get<ApiCategory[]>("/categories/"),
+  });
+  const collectionLinks = categories.length
+    ? categories.slice(0, 4).map((category) => ({
+        label: category.name,
+        href: `/catalog?category=${category.id}`,
+      }))
+    : ["Rings", "Necklaces", "Earrings", "Bracelets"].map((item) => ({
+        label: item,
+        href: "/catalog",
+      }));
+
   return (
     <footer className="bg-foreground text-background">
       {/* Main Footer */}
@@ -44,13 +62,13 @@ const Footer = () => {
           <div className="col-span-6 md:col-span-2 lg:col-span-2">
             <h3 className="vogue-subheading text-[10px] text-background mb-6">Collections</h3>
             <ul className="space-y-4">
-              {["Rings", "Necklaces", "Earrings", "Bracelets"].map((item) => (
-                <li key={item}>
+              {collectionLinks.map((item) => (
+                <li key={item.label}>
                   <Link
-                    to={`/catalog?category=${item.toLowerCase()}`}
+                    to={item.href}
                     className="vogue-body text-background/60 hover:text-primary transition-colors duration-300"
                   >
-                    {item}
+                    {item.label}
                   </Link>
                 </li>
               ))}

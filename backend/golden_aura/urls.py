@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
@@ -5,7 +7,7 @@ from rest_framework.routers import DefaultRouter
 from accounts.views import AdminUserViewSet, CsrfView, LoginView, LogoutView, MeView, PasswordResetView, RegisterView, UserProfileViewSet
 from analytics.views import AdminMetricsView, EventBatchView, EventViewSet
 from cart.views import CartItemViewSet, CartViewSet
-from catalog.views import CollectionViewSet, LowInventoryView, ProductMediaViewSet, ProductVariantViewSet, ProductViewSet, TagViewSet
+from catalog.views import CategoryViewSet, CollectionViewSet, LowInventoryView, ProductMediaViewSet, ProductVariantViewSet, ProductViewSet, TagViewSet
 from orders.views import CheckoutView, OrderItemViewSet, OrderViewSet
 from payments.views import PaymentInitializeView, PaymentVerifyView, PaymentViewSet, PaymentWebhookView
 from promotions.views import ActivePromotionsView, CouponValidateView, CouponViewSet, PromotionRuleViewSet
@@ -15,6 +17,7 @@ router = DefaultRouter()
 router.register("profiles", UserProfileViewSet, basename="profile")
 router.register("admin/users", AdminUserViewSet, basename="admin-users")
 router.register("collections", CollectionViewSet, basename="collection")
+router.register("categories", CategoryViewSet, basename="category")
 router.register("products", ProductViewSet, basename="product")
 router.register("tags", TagViewSet, basename="tag")
 router.register("product-variants", ProductVariantViewSet, basename="product-variant")
@@ -53,3 +56,6 @@ urlpatterns = [
     path("api/admin/inventory/low", LowInventoryView.as_view()),
     path("api/", include(router.urls)),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

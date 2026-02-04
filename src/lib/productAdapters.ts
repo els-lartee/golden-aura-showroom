@@ -1,4 +1,4 @@
-import type { ApiCollection, ApiProduct, ApiProductMedia } from "@/lib/types";
+import type { ApiCategory, ApiCollection, ApiProduct, ApiProductMedia } from "@/lib/types";
 
 const sortMedia = (media: ApiProductMedia[]) =>
   [...media].sort((a, b) => {
@@ -16,9 +16,14 @@ export const getProductImages = (product: ApiProduct) => {
 
 export const getProductCategory = (
   product: ApiProduct,
+  categories: ApiCategory[],
   collections: ApiCollection[]
 ) => {
-  const lookup = new Map(collections.map((collection) => [collection.id, collection.name]));
+  if (product.category) {
+    const categoryLookup = new Map(categories.map((category) => [category.id, category.name]));
+    return categoryLookup.get(product.category) ?? "Category";
+  }
+  const collectionLookup = new Map(collections.map((collection) => [collection.id, collection.name]));
   const first = product.collections?.[0];
-  return first ? lookup.get(first) ?? "Collection" : "Collection";
+  return first ? collectionLookup.get(first) ?? "Collection" : "Collection";
 };

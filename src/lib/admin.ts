@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api";
-import type { ApiProduct, ApiTag } from "@/lib/types";
+import type { ApiCategory, ApiProduct, ApiTag } from "@/lib/types";
 
 export type AdminMetrics = {
   total_orders: number;
@@ -67,6 +67,11 @@ export const adminApi = {
     apiClient.patch<ApiProduct>(`/products/${id}/`, payload),
   tags: () => apiClient.get<ApiTag[]>("/tags/"),
   createTag: (payload: Partial<ApiTag>) => apiClient.post<ApiTag>("/tags/", payload),
+  deleteTag: (id: number) => apiClient.delete<void>(`/tags/${id}/`),
+  categories: () => apiClient.get<ApiCategory[]>("/categories/"),
+  createCategory: (payload: Partial<ApiCategory>) => apiClient.post<ApiCategory>("/categories/", payload),
+  deleteCategory: (id: number) => apiClient.delete<void>(`/categories/${id}/`),
+  createProductMedia: (payload: FormData) => apiClient.upload("/product-media/", payload),
   coupons: () => apiClient.get<Coupon[]>("/coupons/"),
   createCoupon: (payload: Partial<Coupon>) => apiClient.post<Coupon>("/coupons/", payload),
   promotionRules: () => apiClient.get<PromotionRule[]>("/promotion-rules/"),

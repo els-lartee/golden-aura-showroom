@@ -5,11 +5,13 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useCart, useRemoveCartItem, useUpdateCartItem } from "@/hooks/useCart";
 import { Link } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const CartDrawer = () => {
   const { data: cart } = useCart();
   const removeItem = useRemoveCartItem();
   const updateItem = useUpdateCartItem();
+  const { toast } = useToast();
 
   const totalItems = cart?.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
 
@@ -45,10 +47,23 @@ const CartDrawer = () => {
                       size="icon"
                       variant="outline"
                       onClick={() =>
-                        updateItem.mutate({
-                          id: item.id,
-                          quantity: Math.max(1, item.quantity - 1),
-                        })
+                        updateItem.mutate(
+                          {
+                            id: item.id,
+                            quantity: Math.max(1, item.quantity - 1),
+                          },
+                          {
+                            onError: (error) => {
+                              const message =
+                                (error as { message?: string })?.message || "Update failed";
+                              toast({
+                                title: "Quantity update failed",
+                                description: message,
+                                variant: "destructive",
+                              });
+                            },
+                          }
+                        )
                       }
                     >
                       -
@@ -60,10 +75,23 @@ const CartDrawer = () => {
                       size="icon"
                       variant="outline"
                       onClick={() =>
-                        updateItem.mutate({
-                          id: item.id,
-                          quantity: item.quantity + 1,
-                        })
+                        updateItem.mutate(
+                          {
+                            id: item.id,
+                            quantity: item.quantity + 1,
+                          },
+                          {
+                            onError: (error) => {
+                              const message =
+                                (error as { message?: string })?.message || "Update failed";
+                              toast({
+                                title: "Quantity update failed",
+                                description: message,
+                                variant: "destructive",
+                              });
+                            },
+                          }
+                        )
                       }
                     >
                       +
@@ -73,7 +101,20 @@ const CartDrawer = () => {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => removeItem.mutate(item.id)}
+                  onClick={() =>
+                    removeItem.mutate(item.id, {
+                      onSuccess: () => toast({ title: "Item removed" }),
+                      onError: (error) => {
+                        const message =
+                          (error as { message?: string })?.message || "Remove failed";
+                        toast({
+                          title: "Remove failed",
+                          description: message,
+                          variant: "destructive",
+                        });
+                      },
+                    })
+                  }
                 >
                   <X size={16} />
                 </Button>

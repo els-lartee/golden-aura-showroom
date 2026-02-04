@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -19,8 +19,11 @@ import ARModal from "@/components/ARModal";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
 import { getProductCategory, getProductImages } from "@/lib/productAdapters";
-import type { ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
+import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
 import { useAddToCart, useCart } from "@/hooks/useCart";
+import { useMe } from "@/hooks/useAuth";
+import { trackEventSafe } from "@/hooks/useAnalytics";
+import { useToast } from "@/hooks/use-toast";
 
 /**
  * ProductDetail Page - Swiss Design with AR Integration
@@ -33,9 +36,14 @@ import { useAddToCart, useCart } from "@/hooks/useCart";
  */
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { data: me } = useMe();
   const { data: collections = [] } = useQuery<ApiCollection[]>({
     queryKey: ["collections"],
     queryFn: () => apiClient.get<ApiCollection[]>("/collections/"),
+  });
+  const { data: categories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ["categories"],
+    queryFn: () => apiClient.get<ApiCategory[]>("/categories/"),
   });
   const { data: tags = [] } = useQuery<ApiTag[]>({
     queryKey: ["tags"],
@@ -55,11 +63,12 @@ const ProductDetail = () => {
   const { data: cart } = useCart();
   const addToCart = useAddToCart();
   const canAddToCart = Boolean(cart && product?.variants?.length);
+  const { toast } = useToast();
 
   const images = useMemo(() => (product ? getProductImages(product) : []), [product]);
   const category = useMemo(
-    () => (product ? getProductCategory(product, collections) : "Collection"),
-    [product, collections]
+    () => (product ? getProductCategory(product, categories, collections) : "Category"),
+    [product, categories, collections]
   );
   const tagNames = useMemo(() => {
     if (!product?.tags?.length) return [] as string[];
@@ -67,8 +76,34 @@ const ProductDetail = () => {
     return product.tags.map((tagId) => lookup.get(tagId)).filter(Boolean) as string[];
   }, [product?.tags, tags]);
 
-  const { data: recommendedProducts = [] } = useQuery<ApiProduct[]>({
-    queryKey: ["recommended", product?.collections?.[0]],
+  type Recommendation = { id: number; user: number; product: number; score: string | number };
+
+  const { data: recommendations = [] } = useQuery<Recommendation[]>({
+    queryKey: ["recommendations", me?.user?.id],
+    queryFn: () => apiClient.get<Recommendation[]>("/recommendations/", { user_id: me?.user?.id }),
+    enabled: Boolean(me?.user?.id),
+  });
+
+  const { data: recommendedProducts = [], isLoading: isRecommendationsLoading } = useQuery<
+    ApiProduct[]
+  >({
+    queryKey: ["recommended-products", recommendations],
+    queryFn: async () => {
+      if (!recommendations.length) return [];
+      const productIds = recommendations
+        .map((rec) => rec.product)
+        .filter(Boolean)
+        .slice(0, 8);
+      const products = await Promise.all(
+        productIds.map((productId) => apiClient.get<ApiProduct>(`/products/${productId}/`))
+      );
+      return products;
+    },
+    enabled: recommendations.length > 0,
+  });
+
+  const { data: collectionRecommendedProducts = [] } = useQuery<ApiProduct[]>({
+    queryKey: ["recommended-collection", product?.collections?.[0]],
     queryFn: () =>
       apiClient.get<ApiProduct[]>("/products/", {
         collection: product?.collections?.[0],
@@ -76,6 +111,10 @@ const ProductDetail = () => {
       }),
     enabled: Boolean(product?.collections?.length),
   });
+
+  const activeRecommended = recommendedProducts.length
+    ? recommendedProducts
+    : collectionRecommendedProducts;
 
   if (isProductLoading) {
     return (
@@ -93,7 +132,7 @@ const ProductDetail = () => {
     );
   }
 
-  const filteredRecommended = recommendedProducts
+  const filteredActiveRecommended = activeRecommended
     .filter((item) => String(item.id) !== id)
     .slice(0, 4);
 
@@ -121,12 +160,21 @@ const ProductDetail = () => {
    * Handle AR try-on for recommended products
    */
   const handleRecommendedARTryOn = (productId: string) => {
-    const productData = recommendedProducts.find(p => String(p.id) === productId);
+    const productData = activeRecommended.find(p => String(p.id) === productId);
     if (productData) {
       setActiveProductName(productData.title);
       setIsTryOnOpen(true);
     }
   };
+
+  useEffect(() => {
+    if (!product?.id) return;
+    trackEventSafe({
+      event_type: "view",
+      product: product.id,
+      user: me?.user?.id,
+    });
+  }, [me?.user?.id, product?.id]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -284,11 +332,32 @@ const ProductDetail = () => {
                   className="flex-1 bg-foreground hover:bg-foreground/90 text-background py-6 font-semibold tracking-wide"
                   onClick={() => {
                     if (!cart || !product.variants?.length) return;
-                    addToCart.mutate({
-                      cart: cart.id,
-                      product_variant: product.variants[0].id,
-                      quantity: 1,
-                    });
+                    addToCart.mutate(
+                      {
+                        cart: cart.id,
+                        product_variant: product.variants[0].id,
+                        quantity: 1,
+                      },
+                      {
+                        onSuccess: () => {
+                          toast({ title: "Added to bag" });
+                          trackEventSafe({
+                            event_type: "add_to_cart",
+                            product: product.id,
+                            user: me?.user?.id,
+                          });
+                        },
+                        onError: (error) => {
+                          const message =
+                            (error as { message?: string })?.message || "Add to cart failed";
+                          toast({
+                            title: "Add to bag failed",
+                            description: message,
+                            variant: "destructive",
+                          });
+                        },
+                      }
+                    );
                   }}
                   disabled={!canAddToCart || addToCart.isPending}
                 >
@@ -344,7 +413,7 @@ const ProductDetail = () => {
           </div>
 
           {/* Recommended Products */}
-          {filteredRecommended.length > 0 && (
+          {filteredActiveRecommended.length > 0 && (
             <section className="mt-20 pt-12 border-t-2 border-foreground">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -362,9 +431,9 @@ const ProductDetail = () => {
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                  {filteredRecommended.map((item) => {
+                  {filteredActiveRecommended.map((item) => {
                     const recImages = getProductImages(item);
-                    const recCategory = getProductCategory(item, collections);
+                    const recCategory = getProductCategory(item, categories, collections);
                     return (
                     <ProductCard
                       key={item.id}
@@ -376,10 +445,20 @@ const ProductDetail = () => {
                       category={recCategory}
                       isNew={item.is_featured}
                       onARTryOn={handleRecommendedARTryOn}
+                      onProductClick={(productId) =>
+                        trackEventSafe({
+                          event_type: "click",
+                          product: Number(productId),
+                          user: me?.user?.id,
+                        })
+                      }
                     />
                     );
                   })}
                 </div>
+                {isRecommendationsLoading && (
+                  <p className="mt-4 text-xs text-muted-foreground">Loading recommendations...</p>
+                )}
               </motion.div>
             </section>
           )}
