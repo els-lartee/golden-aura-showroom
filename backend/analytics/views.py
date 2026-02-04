@@ -36,7 +36,7 @@ class AdminMetricsView(APIView):
             "total_orders": Order.objects.count(),
             "total_revenue": Payment.objects.filter(status="captured").aggregate(total=Sum("amount"))["total"]
             or 0,
-            "total_customers": User.objects.count(),
+            "total_customers": User.objects.filter(is_staff=False, is_superuser=False).count(),
             "total_products": Product.objects.count(),
             "low_inventory_variants": ProductVariant.objects.filter(stock_quantity__lte=5).count(),
         }

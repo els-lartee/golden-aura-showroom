@@ -51,8 +51,25 @@ class ProductMediaSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         url = attrs.get("url")
         file = attrs.get("file")
+        media_type = attrs.get("media_type") or getattr(self.instance, "media_type", None)
         if not url and not file and self.instance is None:
             raise serializers.ValidationError("Either url or file is required.")
+        if media_type == ProductMedia.MediaType.MODEL:
+            if file is not None:
+                name = getattr(file, "name", "") or ""
+                if not name.lower().endswith(".glb"):
+                    raise serializers.ValidationError("3D model must be a .glb file.")
+            if url:
+                if not str(url).lower().endswith(".glb"):
+                    raise serializers.ValidationError("3D model URL must end with .glb.")
+        if media_type == ProductMedia.MediaType.IMAGE:
+            if file is not None:
+                name = getattr(file, "name", "") or ""
+                if not name.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+                    raise serializers.ValidationError("Image must be png, jpg, jpeg, webp, or gif.")
+            if url:
+                if not str(url).lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+                    raise serializers.ValidationError("Image URL must be png, jpg, jpeg, webp, or gif.")
         return attrs
 
     def create(self, validated_data):
