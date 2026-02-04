@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, ShoppingBag, Heart, User, Menu, X } from "lucide-react";
+import { Search, Heart, User, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLogout, useMe } from "@/hooks/useAuth";
+import CartDrawer from "@/components/CartDrawer";
 
 /**
  * Navbar Component - Vogue Editorial Style
@@ -16,12 +18,16 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
+  const { data: me } = useMe();
+  const logout = useLogout();
+  const isAuthenticated = Boolean(me?.user);
 
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Collections", path: "/catalog" },
     { name: "New Arrivals", path: "/catalog?filter=new" },
     { name: "Account", path: "/dashboard" },
+    ...(me?.profile?.role === "admin" ? [{ name: "Admin", path: "/admin" }] : []),
   ];
 
   return (
@@ -82,7 +88,7 @@ const Navbar = () => {
                 <Heart size={18} strokeWidth={1.5} />
               </Button>
             </Link>
-            <Link to="/dashboard">
+            <Link to={isAuthenticated ? "/dashboard" : "/login"}>
               <Button
                 variant="ghost"
                 size="icon"
@@ -91,16 +97,7 @@ const Navbar = () => {
                 <User size={18} strokeWidth={1.5} />
               </Button>
             </Link>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative hover:text-primary transition-colors duration-300"
-            >
-              <ShoppingBag size={18} strokeWidth={1.5} />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-medium flex items-center justify-center">
-                0
-              </span>
-            </Button>
+            <CartDrawer />
           </div>
         </div>
 
@@ -157,6 +154,28 @@ const Navbar = () => {
                     </Link>
                   </motion.li>
                 ))}
+                <motion.li
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: navLinks.length * 0.1 }}
+                >
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => logout.mutate()}
+                      className="block py-4 font-serif text-xl text-foreground/70 hover:text-foreground transition-colors duration-300"
+                    >
+                      Sign out
+                    </button>
+                  ) : (
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block py-4 font-serif text-xl text-foreground/70 hover:text-foreground transition-colors duration-300"
+                    >
+                      Sign in
+                    </Link>
+                  )}
+                </motion.li>
               </ul>
             </motion.div>
           )}

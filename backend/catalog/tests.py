@@ -80,3 +80,36 @@ class CatalogApiTests(APITestCase):
         self.client.force_authenticate(user=admin_user)
         low_inventory_response = self.client.get("/api/admin/inventory/low?threshold=3")
         self.assertEqual(low_inventory_response.status_code, 200)
+
+    def test_tag_creation_and_assignment(self) -> None:
+        tag_response = self.client.post(
+            "/api/tags/",
+            {"name": "Gold", "slug": "gold"},
+            format="json",
+        )
+        self.assertEqual(tag_response.status_code, 201)
+
+        product_response = self.client.post(
+            "/api/products/",
+            {
+                "title": "Gold Ring",
+                "slug": "gold-ring",
+                "base_price": "10000.00",
+                "currency": "NGN",
+                "tags": [tag_response.data["id"]],
+            },
+            format="json",
+        )
+        self.assertEqual(product_response.status_code, 201)
+
+        list_response = self.client.get(f"/api/products/?tag={tag_response.data['id']}")
+        self.assertEqual(list_response.status_code, 200)
+
+    def test_tag_creation_without_slug(self) -> None:
+        tag_response = self.client.post(
+            "/api/tags/",
+            {"name": "Rose Gold"},
+            format="json",
+        )
+        self.assertEqual(tag_response.status_code, 201)
+        self.assertEqual(tag_response.data["slug"], "rose-gold")

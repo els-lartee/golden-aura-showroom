@@ -69,3 +69,14 @@ class AuthApiTests(APITestCase):
             format="json",
         )
         self.assertEqual(put_response.status_code, 200)
+
+
+class AdminUserApiTests(APITestCase):
+    def test_admin_user_list(self) -> None:
+        admin = get_user_model().objects.create_superuser(
+            username="admin", email="admin@example.com", password="pass1234"
+        )
+        self.client.force_authenticate(user=admin)
+
+        response = self.client.get("/api/admin/users/")
+        self.assertEqual(response.status_code, 200)

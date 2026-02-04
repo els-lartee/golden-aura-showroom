@@ -2,10 +2,10 @@ from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from accounts.views import LoginView, LogoutView, MeView, PasswordResetView, RegisterView, UserProfileViewSet
+from accounts.views import AdminUserViewSet, CsrfView, LoginView, LogoutView, MeView, PasswordResetView, RegisterView, UserProfileViewSet
 from analytics.views import AdminMetricsView, EventBatchView, EventViewSet
 from cart.views import CartItemViewSet, CartViewSet
-from catalog.views import CollectionViewSet, LowInventoryView, ProductMediaViewSet, ProductVariantViewSet, ProductViewSet
+from catalog.views import CollectionViewSet, LowInventoryView, ProductMediaViewSet, ProductVariantViewSet, ProductViewSet, TagViewSet
 from orders.views import CheckoutView, OrderItemViewSet, OrderViewSet
 from payments.views import PaymentInitializeView, PaymentVerifyView, PaymentViewSet, PaymentWebhookView
 from promotions.views import ActivePromotionsView, CouponValidateView, CouponViewSet, PromotionRuleViewSet
@@ -13,8 +13,10 @@ from recommendations.views import ProductFeatureViewSet, RecommendationViewSet, 
 
 router = DefaultRouter()
 router.register("profiles", UserProfileViewSet, basename="profile")
+router.register("admin/users", AdminUserViewSet, basename="admin-users")
 router.register("collections", CollectionViewSet, basename="collection")
 router.register("products", ProductViewSet, basename="product")
+router.register("tags", TagViewSet, basename="tag")
 router.register("product-variants", ProductVariantViewSet, basename="product-variant")
 router.register("product-media", ProductMediaViewSet, basename="product-media")
 router.register("carts", CartViewSet, basename="cart")
@@ -32,6 +34,7 @@ router.register("recommendations", RecommendationViewSet, basename="recommendati
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/register", RegisterView.as_view()),
+    path("api/auth/csrf", CsrfView.as_view()),
     path("api/auth/login", LoginView.as_view()),
     path("api/auth/logout", LogoutView.as_view()),
     path("api/auth/password-reset", PasswordResetView.as_view()),

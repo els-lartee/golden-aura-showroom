@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -15,11 +15,22 @@ import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { products } from "@/data/products";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useLogout, useMe, useUpdateMe } from "@/hooks/useAuth";
 
 type TabType = "favorites" | "recent" | "profile";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState<TabType>("favorites");
+  const { data: me, isLoading } = useMe();
+  const logout = useLogout();
+  const updateMe = useUpdateMe();
+  const [profileForm, setProfileForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+  });
 
   // Mock data for favorites and recent views
   const [favorites, setFavorites] = useState(products.slice(0, 3));
@@ -34,6 +45,17 @@ const Dashboard = () => {
     { id: "recent" as TabType, label: "Recent Views", icon: Clock },
     { id: "profile" as TabType, label: "Profile", icon: User },
   ];
+
+  useEffect(() => {
+    if (me?.user) {
+      setProfileForm({
+        first_name: me.user.first_name || "",
+        last_name: me.user.last_name || "",
+        email: me.user.email || "",
+        phone: me.profile?.phone || "",
+      });
+    }
+  }, [me]);
 
   return (
     <div className="min-h-screen">
@@ -78,7 +100,10 @@ const Dashboard = () => {
                   <Settings size={18} />
                   <span className="font-medium text-sm">Settings</span>
                 </button>
-                <button className="hidden lg:flex items-center gap-3 px-4 py-3 rounded-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                <button
+                  onClick={() => logout.mutate()}
+                  className="hidden lg:flex items-center gap-3 px-4 py-3 rounded-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                >
                   <LogOut size={18} />
                   <span className="font-medium text-sm">Sign Out</span>
                 </button>
@@ -87,8 +112,32 @@ const Dashboard = () => {
 
             {/* Content Area */}
             <div className="flex-1">
+              {!isLoading && !me?.user && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.4 }}
+                  className="bg-secondary border border-border rounded-sm p-8"
+                >
+                  <h2 className="font-serif text-2xl mb-2">Sign in required</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Create an account or sign in to manage favorites and profile.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <Link to="/login">
+                      <Button className="bg-foreground text-background hover:bg-foreground/90">
+                        Sign in
+                      </Button>
+                    </Link>
+                    <Link to="/register">
+                      <Button variant="outline">Create account</Button>
+                    </Link>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Favorites Tab */}
-              {activeTab === "favorites" && (
+              {activeTab === "favorites" && me?.user && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -138,7 +187,7 @@ const Dashboard = () => {
               )}
 
               {/* Recent Views Tab */}
-              {activeTab === "recent" && (
+              {activeTab === "recent" && me?.user && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -186,7 +235,7 @@ const Dashboard = () => {
               )}
 
               {/* Profile Tab */}
-              {activeTab === "profile" && (
+              {activeTab === "profile" && me?.user && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -197,13 +246,14 @@ const Dashboard = () => {
                   <div className="bg-card border border-border rounded-sm p-6 md:p-8">
                     <div className="flex items-center gap-6 mb-8 pb-8 border-b border-border">
                       <div className="w-20 h-20 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground text-2xl font-serif">
-                        AG
+                        {(profileForm.first_name?.[0] || "G") +
+                          (profileForm.last_name?.[0] || "A")}
                       </div>
                       <div>
-                        <h3 className="font-serif text-xl">Ama Gyamfua</h3>
-                        <p className="text-muted-foreground">
-                          ama.gyamfua@email.com
-                        </p>
+                        <h3 className="font-serif text-xl">
+                          {profileForm.first_name || "Guest"} {profileForm.last_name}
+                        </h3>
+                        <p className="text-muted-foreground">{profileForm.email}</p>
                       </div>
                     </div>
 
@@ -213,20 +263,30 @@ const Dashboard = () => {
                           <label className="block text-sm font-medium mb-2">
                             First Name
                           </label>
-                          <input
+                          <Input
                             type="text"
-                            defaultValue="Ama"
-                            className="w-full px-4 py-3 bg-secondary border border-border rounded-sm focus:outline-none focus:border-primary transition-colors"
+                            value={profileForm.first_name}
+                            onChange={(event) =>
+                              setProfileForm((prev) => ({
+                                ...prev,
+                                first_name: event.target.value,
+                              }))
+                            }
                           />
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-2">
                             Last Name
                           </label>
-                          <input
+                          <Input
                             type="text"
-                            defaultValue="Gyamfua"
-                            className="w-full px-4 py-3 bg-secondary border border-border rounded-sm focus:outline-none focus:border-primary transition-colors"
+                            value={profileForm.last_name}
+                            onChange={(event) =>
+                              setProfileForm((prev) => ({
+                                ...prev,
+                                last_name: event.target.value,
+                              }))
+                            }
                           />
                         </div>
                       </div>
@@ -235,10 +295,15 @@ const Dashboard = () => {
                         <label className="block text-sm font-medium mb-2">
                           Email Address
                         </label>
-                        <input
+                        <Input
                           type="email"
-                          defaultValue="ama.gyamfua@email.com"
-                          className="w-full px-4 py-3 bg-secondary border border-border rounded-sm focus:outline-none focus:border-primary transition-colors"
+                          value={profileForm.email}
+                          onChange={(event) =>
+                            setProfileForm((prev) => ({
+                              ...prev,
+                              email: event.target.value,
+                            }))
+                          }
                         />
                       </div>
 
@@ -246,14 +311,34 @@ const Dashboard = () => {
                         <label className="block text-sm font-medium mb-2">
                           Phone Number
                         </label>
-                        <input
+                        <Input
                           type="tel"
-                          defaultValue="+233 24 123 4567"
-                          className="w-full px-4 py-3 bg-secondary border border-border rounded-sm focus:outline-none focus:border-primary transition-colors"
+                          value={profileForm.phone}
+                          onChange={(event) =>
+                            setProfileForm((prev) => ({
+                              ...prev,
+                              phone: event.target.value,
+                            }))
+                          }
                         />
                       </div>
 
-                      <Button className="bg-gradient-gold hover:opacity-90 text-primary-foreground">
+                      <Button
+                        className="bg-gradient-gold hover:opacity-90 text-primary-foreground"
+                        onClick={() =>
+                          updateMe.mutate({
+                            user: {
+                              first_name: profileForm.first_name,
+                              last_name: profileForm.last_name,
+                              email: profileForm.email,
+                            },
+                            profile: {
+                              phone: profileForm.phone,
+                            },
+                          })
+                        }
+                        disabled={updateMe.isPending}
+                      >
                         Save Changes
                       </Button>
                     </div>

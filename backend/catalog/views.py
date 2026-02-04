@@ -2,12 +2,13 @@ from rest_framework import permissions, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from catalog.models import Collection, Product, ProductMedia, ProductVariant
+from catalog.models import Collection, Product, ProductMedia, ProductVariant, Tag
 from catalog.serializers import (
     CollectionSerializer,
     ProductMediaSerializer,
     ProductSerializer,
     ProductVariantSerializer,
+    TagSerializer,
 )
 
 
@@ -24,6 +25,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         query = self.request.query_params.get("query")
         collection = self.request.query_params.get("collection")
+        tag = self.request.query_params.get("tag")
         price_min = self.request.query_params.get("price_min")
         price_max = self.request.query_params.get("price_max")
         sort = self.request.query_params.get("sort")
@@ -32,6 +34,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(title__icontains=query)
         if collection:
             queryset = queryset.filter(collections__id=collection)
+        if tag:
+            queryset = queryset.filter(tags__id=tag)
         if price_min:
             queryset = queryset.filter(base_price__gte=price_min)
         if price_max:
@@ -50,6 +54,11 @@ class ProductVariantViewSet(viewsets.ModelViewSet):
 class ProductMediaViewSet(viewsets.ModelViewSet):
     queryset = ProductMedia.objects.select_related("product")
     serializer_class = ProductMediaSerializer
+
+
+class TagViewSet(viewsets.ModelViewSet):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
 
 
 class LowInventoryView(APIView):

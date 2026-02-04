@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,12 +11,16 @@ import {
   Shield,
   RotateCcw,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import ARModal from "@/components/ARModal";
 import { Button } from "@/components/ui/button";
-import { products } from "@/data/products";
+import { apiClient } from "@/lib/api";
+import { getProductCategory, getProductImages } from "@/lib/productAdapters";
+import type { ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
+import { useAddToCart, useCart } from "@/hooks/useCart";
 
 /**
  * ProductDetail Page - Swiss Design with AR Integration
@@ -29,11 +33,57 @@ import { products } from "@/data/products";
  */
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const product = products.find((p) => p.id === id);
+  const { data: collections = [] } = useQuery<ApiCollection[]>({
+    queryKey: ["collections"],
+    queryFn: () => apiClient.get<ApiCollection[]>("/collections/"),
+  });
+  const { data: tags = [] } = useQuery<ApiTag[]>({
+    queryKey: ["tags"],
+    queryFn: () => apiClient.get<ApiTag[]>("/tags/"),
+  });
+
+  const { data: product, isLoading: isProductLoading } = useQuery<ApiProduct>({
+    queryKey: ["product", id],
+    queryFn: () => apiClient.get<ApiProduct>(`/products/${id}/`),
+    enabled: Boolean(id),
+  });
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
+  const { data: cart } = useCart();
+  const addToCart = useAddToCart();
+  const canAddToCart = Boolean(cart && product?.variants?.length);
+
+  const images = useMemo(() => (product ? getProductImages(product) : []), [product]);
+  const category = useMemo(
+    () => (product ? getProductCategory(product, collections) : "Collection"),
+    [product, collections]
+  );
+  const tagNames = useMemo(() => {
+    if (!product?.tags?.length) return [] as string[];
+    const lookup = new Map(tags.map((tag) => [tag.id, tag.name]));
+    return product.tags.map((tagId) => lookup.get(tagId)).filter(Boolean) as string[];
+  }, [product?.tags, tags]);
+
+  const { data: recommendedProducts = [] } = useQuery<ApiProduct[]>({
+    queryKey: ["recommended", product?.collections?.[0]],
+    queryFn: () =>
+      apiClient.get<ApiProduct[]>("/products/", {
+        collection: product?.collections?.[0],
+        sort: "-is_featured",
+      }),
+    enabled: Boolean(product?.collections?.length),
+  });
+
+  if (isProductLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lg font-semibold">Loading product...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -43,19 +93,19 @@ const ProductDetail = () => {
     );
   }
 
-  const recommendedProducts = products
-    .filter((p) => p.id !== id && p.category === product.category)
+  const filteredRecommended = recommendedProducts
+    .filter((item) => String(item.id) !== id)
     .slice(0, 4);
 
   const nextImage = () => {
     setSelectedImageIndex((prev) =>
-      prev === product.images.length - 1 ? 0 : prev + 1
+      prev === images.length - 1 ? 0 : prev + 1
     );
   };
 
   const prevImage = () => {
     setSelectedImageIndex((prev) =>
-      prev === 0 ? product.images.length - 1 : prev - 1
+      prev === 0 ? images.length - 1 : prev - 1
     );
   };
 
@@ -63,7 +113,7 @@ const ProductDetail = () => {
    * Handle AR Try-On button click.
    */
   const handleARTryOn = () => {
-    setActiveProductName(product.name);
+    setActiveProductName(product.title);
     setIsTryOnOpen(true);
   };
 
@@ -71,9 +121,9 @@ const ProductDetail = () => {
    * Handle AR try-on for recommended products
    */
   const handleRecommendedARTryOn = (productId: string) => {
-    const productData = products.find(p => p.id === productId);
+    const productData = recommendedProducts.find(p => String(p.id) === productId);
     if (productData) {
-      setActiveProductName(productData.name);
+      setActiveProductName(productData.title);
       setIsTryOnOpen(true);
     }
   };
@@ -97,7 +147,7 @@ const ProductDetail = () => {
               Collections
             </Link>
             <span>/</span>
-            <span className="text-foreground uppercase tracking-wide">{product.name}</span>
+            <span className="text-foreground uppercase tracking-wide">{product.title}</span>
           </motion.nav>
 
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
@@ -113,8 +163,8 @@ const ProductDetail = () => {
                 <AnimatePresence mode="wait">
                   <motion.img
                     key={selectedImageIndex}
-                    src={product.images[selectedImageIndex]}
-                    alt={product.name}
+                    src={images[selectedImageIndex]}
+                    alt={product.title}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -139,13 +189,13 @@ const ProductDetail = () => {
 
                 {/* Image Counter */}
                 <div className="absolute bottom-4 left-4 px-3 py-1 bg-background text-xs font-bold tracking-wide">
-                  {selectedImageIndex + 1} / {product.images.length}
+                  {selectedImageIndex + 1} / {images.length}
                 </div>
               </div>
 
               {/* Thumbnails */}
               <div className="flex gap-2">
-                {product.images.map((image, index) => (
+                {images.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
@@ -157,7 +207,7 @@ const ProductDetail = () => {
                   >
                     <img
                       src={image}
-                      alt={`${product.name} view ${index + 1}`}
+                      alt={`${product.title} view ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -172,22 +222,34 @@ const ProductDetail = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="lg:py-4"
             >
-              {product.isNew && (
+              {product.is_featured && (
                 <span className="inline-block px-3 py-1 bg-foreground text-background text-[10px] font-bold tracking-[0.15em] uppercase mb-4">
                   New Arrival
                 </span>
               )}
 
               <p className="text-muted-foreground text-xs font-semibold uppercase tracking-[0.15em] mb-2">
-                {product.category}
+                {category}
               </p>
+              {tagNames.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {tagNames.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-1 bg-secondary text-[10px] font-semibold uppercase tracking-[0.12em]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <h1 className="swiss-heading text-foreground mb-4">
-                {product.name}
+                {product.title}
               </h1>
 
               <p className="text-2xl font-bold text-foreground mb-6 tracking-tight">
-                GH₵ {product.price.toLocaleString()}
+                GH₵ {Number(product.base_price).toLocaleString()}
               </p>
 
               <div className="swiss-grid-line mb-6" />
@@ -220,6 +282,15 @@ const ProductDetail = () => {
                 <Button
                   size="lg"
                   className="flex-1 bg-foreground hover:bg-foreground/90 text-background py-6 font-semibold tracking-wide"
+                  onClick={() => {
+                    if (!cart || !product.variants?.length) return;
+                    addToCart.mutate({
+                      cart: cart.id,
+                      product_variant: product.variants[0].id,
+                      quantity: 1,
+                    });
+                  }}
+                  disabled={!canAddToCart || addToCart.isPending}
                 >
                   <ShoppingBag size={18} className="mr-2" />
                   Add to Bag
@@ -244,19 +315,13 @@ const ProductDetail = () => {
                 <h3 className="text-sm font-bold uppercase tracking-[0.1em]">Product Details</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Material</p>
-                    <p className="font-semibold">{product.material}</p>
+                    <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">SKU</p>
+                    <p className="font-semibold">{product.variants?.[0]?.sku || "—"}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Weight</p>
-                    <p className="font-semibold">{product.weight}</p>
+                    <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Variant</p>
+                    <p className="font-semibold">{product.variants?.[0]?.name || "Standard"}</p>
                   </div>
-                  {product.dimensions && (
-                    <div>
-                      <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Dimensions</p>
-                      <p className="font-semibold">{product.dimensions}</p>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -279,7 +344,7 @@ const ProductDetail = () => {
           </div>
 
           {/* Recommended Products */}
-          {recommendedProducts.length > 0 && (
+          {filteredRecommended.length > 0 && (
             <section className="mt-20 pt-12 border-t-2 border-foreground">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -297,19 +362,23 @@ const ProductDetail = () => {
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                  {recommendedProducts.map((product) => (
+                  {filteredRecommended.map((item) => {
+                    const recImages = getProductImages(item);
+                    const recCategory = getProductCategory(item, collections);
+                    return (
                     <ProductCard
-                      key={product.id}
-                      id={product.id}
-                      name={product.name}
-                      price={product.price}
-                      image={product.images[0]}
-                      hoverImage={product.images[1]}
-                      category={product.category}
-                      isNew={product.isNew}
+                      key={item.id}
+                      id={String(item.id)}
+                      name={item.title}
+                      price={Number(item.base_price)}
+                      image={recImages[0]}
+                      hoverImage={recImages[1] || recImages[0]}
+                      category={recCategory}
+                      isNew={item.is_featured}
                       onARTryOn={handleRecommendedARTryOn}
                     />
-                  ))}
+                    );
+                  })}
                 </div>
               </motion.div>
             </section>

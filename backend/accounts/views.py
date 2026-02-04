@@ -1,10 +1,19 @@
 from django.contrib.auth import authenticate, get_user_model, login as django_login, logout as django_logout
+from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import UserProfile
-from accounts.serializers import MeSerializer, RegisterSerializer, UserProfileSerializer, UserSerializer
+from accounts.serializers import (
+    AdminUserSerializer,
+    MeSerializer,
+    RegisterSerializer,
+    UserProfileSerializer,
+    UserSerializer,
+)
 
 User = get_user_model()
 
@@ -12,6 +21,12 @@ User = get_user_model()
 class UserProfileViewSet(viewsets.ModelViewSet):
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
+
+
+class AdminUserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = AdminUserSerializer
+    permission_classes = [permissions.IsAdminUser]
 
 
 class RegisterView(APIView):
@@ -39,6 +54,7 @@ class LoginView(APIView):
         return Response(UserSerializer(user).data)
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class LogoutView(APIView):
     def post(self, request):
         django_logout(request)
@@ -72,3 +88,13 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class CsrfView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        token = get_token(request)
+        return Response({"detail": "CSRF cookie set", "csrfToken": token})

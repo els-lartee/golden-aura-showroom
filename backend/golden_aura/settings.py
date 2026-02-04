@@ -12,6 +12,7 @@ ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
     "corsheaders",
+    "django_crontab",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -129,3 +130,14 @@ CSRF_TRUSTED_ORIGINS = os.getenv(
     "CSRF_TRUSTED_ORIGINS",
     "http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:8000,http://localhost:8080,http://127.0.0.1:8080,https://*.app.github.dev"
 ).split(",")
+
+SECURE_COOKIES = os.getenv("DJANGO_SECURE_COOKIES", "true").lower() == "true"
+
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE = SECURE_COOKIES
+SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = SECURE_COOKIES
+
+CRONJOBS = [
+    ("*/1 * * * *", "django.core.management.call_command", ["rebuild_recommendations"]),
+]

@@ -12,10 +12,13 @@ class AnalyticsApiTests(APITestCase):
             base_price="20000.00",
             currency="NGN",
         )
+        user = get_user_model().objects.create_user(
+            username="eventuser", email="event@example.com", password="pass1234"
+        )
 
         response = self.client.post(
             "/api/events/",
-            {"event_type": "view", "product": product.id, "session_key": "sess-1"},
+            {"event_type": "view", "product": product.id, "user": user.id},
             format="json",
         )
         self.assertEqual(response.status_code, 201)
@@ -27,13 +30,16 @@ class AnalyticsApiTests(APITestCase):
             base_price="15000.00",
             currency="NGN",
         )
+        user = get_user_model().objects.create_user(
+            username="batchuser", email="batch@example.com", password="pass1234"
+        )
 
         batch_response = self.client.post(
             "/api/events/batch",
             {
                 "events": [
-                    {"event_type": "view", "product": product.id, "session_key": "sess-1"},
-                    {"event_type": "click", "product": product.id, "session_key": "sess-1"},
+                    {"event_type": "view", "product": product.id, "user": user.id},
+                    {"event_type": "click", "product": product.id, "user": user.id},
                 ]
             },
             format="json",

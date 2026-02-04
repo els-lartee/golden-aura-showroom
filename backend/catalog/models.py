@@ -26,6 +26,7 @@ class Product(models.Model):
     currency = models.CharField(max_length=10, default="NGN")
     is_featured = models.BooleanField(default=False)
     collections = models.ManyToManyField(Collection, blank=True, related_name="products")
+    tags = models.ManyToManyField("Tag", blank=True, related_name="products")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -60,3 +61,11 @@ class ProductMedia(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product.title} - {self.media_type}"
+
+
+class Tag(models.Model):
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120, unique=True)
+
+    def __str__(self) -> str:
+        return self.name
