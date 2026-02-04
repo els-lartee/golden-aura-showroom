@@ -13,3 +13,14 @@ npm install
 ```bash
 npm run dev
 ```
+
+## Environment
+
+Create a `.env` file at the project root and set the backend API URL:
+
+- `VITE_API_BASE_URL=http://localhost:8000/api`
+
+If using Codespaces, replace with your forwarded backend URL, e.g.
+
+- `VITE_API_BASE_URL=https://<codespace>-8000.app.github.dev/api`
+```
