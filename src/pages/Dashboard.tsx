@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -13,10 +13,13 @@ import {
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
-import { products } from "@/data/products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLogout, useMe, useUpdateMe } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api";
+import { getProductCategory, getProductImages } from "@/lib/productAdapters";
+import type { ApiCategory, ApiCollection, ApiProduct } from "@/lib/types";
 
 type TabType = "favorites" | "recent" | "profile";
 
@@ -32,12 +35,26 @@ const Dashboard = () => {
     phone: "",
   });
 
-  // Mock data for favorites and recent views
-  const [favorites, setFavorites] = useState(products.slice(0, 3));
-  const [recentViews] = useState(products.slice(2, 6));
+  const { data: products = [] } = useQuery<ApiProduct[]>({
+    queryKey: ["products", "dashboard"],
+    queryFn: () => apiClient.get<ApiProduct[]>("/products/", { sort: "-is_featured" }),
+  });
+  const { data: categories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ["categories"],
+    queryFn: () => apiClient.get<ApiCategory[]>("/categories/"),
+  });
+  const { data: collections = [] } = useQuery<ApiCollection[]>({
+    queryKey: ["collections"],
+    queryFn: () => apiClient.get<ApiCollection[]>("/collections/"),
+  });
 
-  const removeFavorite = (id: string) => {
-    setFavorites(favorites.filter((p) => p.id !== id));
+  const initialFavorites = useMemo(() => products.slice(0, 3), [products]);
+  const initialRecentViews = useMemo(() => products.slice(2, 6), [products]);
+  const [favorites, setFavorites] = useState<ApiProduct[]>([]);
+  const [recentViews, setRecentViews] = useState<ApiProduct[]>([]);
+
+  const removeFavorite = (id: number) => {
+    setFavorites((prev) => prev.filter((p) => p.id !== id));
   };
 
   const tabs = [
@@ -56,6 +73,26 @@ const Dashboard = () => {
       });
     }
   }, [me]);
+
+  useEffect(() => {
+    if (products.length) {
+      setFavorites(initialFavorites);
+      setRecentViews(initialRecentViews);
+    }
+  }, [initialFavorites, initialRecentViews, products.length]);
+
+  const buildCardData = (product: ApiProduct) => {
+    const images = getProductImages(product);
+    return {
+      id: String(product.id),
+      name: product.title,
+      price: Number(product.base_price) || 0,
+      image: images[0],
+      hoverImage: images[1] ?? images[0],
+      category: getProductCategory(product, categories, collections),
+      isNew: product.is_featured,
+    };
+  };
 
   return (
     <div className="min-h-screen">
@@ -154,13 +191,7 @@ const Dashboard = () => {
                       {favorites.map((product) => (
                         <div key={product.id} className="relative">
                           <ProductCard
-                            id={product.id}
-                            name={product.name}
-                            price={product.price}
-                            image={product.images[0]}
-                            hoverImage={product.images[1]}
-                            category={product.category}
-                            isNew={product.isNew}
+                            {...buildCardData(product)}
                             isFavorite={true}
                             onFavoriteToggle={() => removeFavorite(product.id)}
                           />
@@ -205,13 +236,7 @@ const Dashboard = () => {
                       {recentViews.map((product) => (
                         <ProductCard
                           key={product.id}
-                          id={product.id}
-                          name={product.name}
-                          price={product.price}
-                          image={product.images[0]}
-                          hoverImage={product.images[1]}
-                          category={product.category}
-                          isNew={product.isNew}
+                          {...buildCardData(product)}
                         />
                       ))}
                     </div>

@@ -116,22 +116,6 @@ const ProductDetail = () => {
     ? recommendedProducts
     : collectionRecommendedProducts;
 
-  if (isProductLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-lg font-semibold">Loading product...</p>
-      </div>
-    );
-  }
-
-  if (!product) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-lg font-semibold">Product not found</p>
-      </div>
-    );
-  }
-
   const filteredActiveRecommended = activeRecommended
     .filter((item) => String(item.id) !== id)
     .slice(0, 4);
@@ -152,8 +136,10 @@ const ProductDetail = () => {
    * Handle AR Try-On button click.
    */
   const handleARTryOn = () => {
-    setActiveProductName(product.title);
-    setIsTryOnOpen(true);
+    if (product) {
+      setActiveProductName(product.title);
+      setIsTryOnOpen(true);
+    }
   };
 
   /**
@@ -175,6 +161,22 @@ const ProductDetail = () => {
       user: me?.user?.id,
     });
   }, [me?.user?.id, product?.id]);
+
+  if (isProductLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lg font-semibold">Loading product...</p>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lg font-semibold">Product not found</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
