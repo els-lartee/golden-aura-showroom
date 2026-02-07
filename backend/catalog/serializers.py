@@ -1,4 +1,10 @@
+from io import BytesIO
+from pathlib import Path
+from uuid import uuid4
+
+from django.core.files.base import ContentFile
 from django.utils.text import slugify
+from PIL import Image
 from rest_framework import serializers
 
 from catalog.models import Category, Collection, Favorite, Product, ProductMedia, ProductVariant, Tag
@@ -48,6 +54,44 @@ class ProductMediaSerializer(serializers.ModelSerializer):
         model = ProductMedia
         fields = "__all__"
 
+    def _sanitize_image_upload(self, file, product_id: int | None) -> ContentFile:
+        file.seek(0)
+        image = Image.open(file)
+        original_name = getattr(file, "name", "image")
+        base_name = slugify(Path(original_name).stem) or "image"
+
+        format_map = {
+            "JPEG": "jpg",
+            "PNG": "png",
+            "WEBP": "webp",
+            "GIF": "gif",
+        }
+        image_format = (image.format or "").upper()
+        extension = format_map.get(image_format) or Path(original_name).suffix.lstrip(".") or "jpg"
+
+        identifier = product_id or "asset"
+        safe_name = f"product-{identifier}-{base_name}-{uuid4().hex}.{extension.lower()}"
+
+        if image_format == "GIF" and getattr(image, "is_animated", False):
+            file.seek(0)
+            return ContentFile(file.read(), name=safe_name)
+
+        if image.mode not in ("RGB", "RGBA"):
+            image = image.convert("RGB")
+
+        save_kwargs: dict[str, object] = {}
+        if image_format == "JPEG":
+            save_kwargs = {"quality": 85, "optimize": True}
+        elif image_format == "PNG":
+            save_kwargs = {"optimize": True}
+        elif image_format == "WEBP":
+            save_kwargs = {"quality": 82, "method": 6}
+
+        buffer = BytesIO()
+        image.save(buffer, format=image_format or "JPEG", **save_kwargs)
+        buffer.seek(0)
+        return ContentFile(buffer.read(), name=safe_name)
+
     def validate(self, attrs):
         url = attrs.get("url")
         file = attrs.get("file")
@@ -73,6 +117,12 @@ class ProductMediaSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        media_type = validated_data.get("media_type")
+        file = validated_data.get("file")
+        if media_type == ProductMedia.MediaType.IMAGE and file is not None:
+            product = validated_data.get("product")
+            product_id = getattr(product, "id", None)
+            validated_data["file"] = self._sanitize_image_upload(file, product_id)
         media = super().create(validated_data)
         if media.file and not media.url:
             media.url = media.file.url
@@ -80,6 +130,11 @@ class ProductMediaSerializer(serializers.ModelSerializer):
         return media
 
     def update(self, instance, validated_data):
+        media_type = validated_data.get("media_type", instance.media_type)
+        file = validated_data.get("file")
+        if media_type == ProductMedia.MediaType.IMAGE and file is not None:
+            validated_data["file"] = self._sanitize_image_upload(file, instance.product_id)
+
         media = super().update(instance, validated_data)
         if media.file and not media.url:
             media.url = media.file.url

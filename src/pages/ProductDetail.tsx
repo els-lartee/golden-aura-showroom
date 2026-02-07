@@ -18,7 +18,7 @@ import ProductCard from "@/components/ProductCard";
 import ARModal from "@/components/ARModal";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
-import { getProductCategory, getProductImages } from "@/lib/productAdapters";
+import { getProductCategory, getProductImages, getProductModelUrl } from "@/lib/productAdapters";
 import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
 import { useAddToCart, useCart } from "@/hooks/useCart";
 import { useMe } from "@/hooks/useAuth";
@@ -60,6 +60,7 @@ const ProductDetail = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
+  const [activeModelUrl, setActiveModelUrl] = useState<string | null>(null);
   const { data: cart } = useCart();
   const addToCart = useAddToCart();
   const canAddToCart = Boolean(cart && product?.variants?.length);
@@ -148,7 +149,17 @@ const ProductDetail = () => {
    */
   const handleARTryOn = () => {
     if (product) {
+      const modelUrl = getProductModelUrl(product);
+      if (!modelUrl) {
+        toast({
+          title: "AR model unavailable",
+          description: "This item does not have a 3D model yet.",
+          variant: "destructive",
+        });
+        return;
+      }
       setActiveProductName(product.title);
+      setActiveModelUrl(modelUrl);
       setIsTryOnOpen(true);
     }
   };
@@ -159,7 +170,17 @@ const ProductDetail = () => {
   const handleRecommendedARTryOn = (productId: string) => {
     const productData = activeRecommended.find(p => String(p.id) === productId);
     if (productData) {
+      const modelUrl = getProductModelUrl(productData);
+      if (!modelUrl) {
+        toast({
+          title: "AR model unavailable",
+          description: "This item does not have a 3D model yet.",
+          variant: "destructive",
+        });
+        return;
+      }
       setActiveProductName(productData.title);
+      setActiveModelUrl(modelUrl);
       setIsTryOnOpen(true);
     }
   };
@@ -357,6 +378,7 @@ const ProductDetail = () => {
               >
                 <Button
                   onClick={handleARTryOn}
+                  disabled={!getProductModelUrl(product)}
                   size="lg"
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-7 text-sm font-bold tracking-[0.1em] uppercase ar-pulse relative overflow-hidden"
                 >
@@ -478,6 +500,7 @@ const ProductDetail = () => {
                     const recImages = getProductImages(item);
                     const recCategory = getProductCategory(item, categories, collections);
                     const recIsFavorite = favoriteIds.has(item.id);
+                    const recModelUrl = getProductModelUrl(item);
                     return (
                     <ProductCard
                       key={item.id}
@@ -489,6 +512,7 @@ const ProductDetail = () => {
                       category={recCategory}
                       isNew={item.is_featured}
                       isFavorite={recIsFavorite}
+                      arEnabled={Boolean(recModelUrl)}
                       onFavoriteToggle={() => handleFavoriteToggle(item.id)}
                       onARTryOn={handleRecommendedARTryOn}
                       onProductClick={(productId) =>
@@ -515,9 +539,12 @@ const ProductDetail = () => {
       {/* AR Modal - Rendered via Portal */}
       <ARModal
         isOpen={isTryOnOpen}
-        modelUrl="/ring.glb"
+        modelUrl={activeModelUrl}
         productName={activeProductName}
-        onClose={() => setIsTryOnOpen(false)}
+        onClose={() => {
+          setIsTryOnOpen(false);
+          setActiveModelUrl(null);
+        }}
       />
     </div>
   );

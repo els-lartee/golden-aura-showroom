@@ -1,13 +1,50 @@
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 
 from analytics.models import Event
 from catalog.models import Collection, Favorite, Product, ProductVariant
 
+from PIL import Image
+
 User = get_user_model()
 
 
 class CatalogApiTests(APITestCase):
+    def test_product_media_upload_sanitizes_image_upload(self) -> None:
+        product = Product.objects.create(
+            title="Emerald Ring",
+            slug="emerald-ring",
+            base_price="12000.00",
+            currency="NGN",
+        )
+
+        image = Image.new("RGB", (16, 16), color=(10, 20, 30))
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        upload = SimpleUploadedFile("ring.png", buffer.read(), content_type="image/png")
+        response = self.client.post(
+            "/api/product-media/",
+            {
+                "product": product.id,
+                "media_type": "image",
+                "file": upload,
+                "alt_text": "Ring",
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertIn(f"product-{product.id}-", response.data["file"])
+        self.assertIn(f"product-{product.id}-", response.data["url"])
+        self.assertTrue(response.data["file"].endswith(".png"))
+        self.assertTrue(response.data["url"].endswith(".png"))
+        self.assertNotIn(" ", response.data["file"])
+
     def test_create_product_and_variant(self) -> None:
         response = self.client.post(
             "/api/products/",

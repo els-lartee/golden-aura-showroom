@@ -8,7 +8,7 @@ import ProductCard from "@/components/ProductCard";
 import ARModal from "@/components/ARModal";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
-import { getProductCategory, getProductImages } from "@/lib/productAdapters";
+import { getProductCategory, getProductImages, getProductModelUrl } from "@/lib/productAdapters";
 import { trackEventSafe } from "@/hooks/useAnalytics";
 import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
 import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
@@ -23,6 +23,7 @@ const Catalog = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
+  const [activeModelUrl, setActiveModelUrl] = useState<string | null>(null);
   const { data: me } = useMe();
   const { toast } = useToast();
   const { data: favorites = [] } = useFavorites(Boolean(me?.user));
@@ -83,7 +84,17 @@ const Catalog = () => {
   const handleARTryOn = (productId: string) => {
     const product = products.find((p) => String(p.id) === productId);
     if (product) {
+      const modelUrl = getProductModelUrl(product);
+      if (!modelUrl) {
+        toast({
+          title: "AR model unavailable",
+          description: "This item does not have a 3D model yet.",
+          variant: "destructive",
+        });
+        return;
+      }
       setActiveProductName(product.title);
+      setActiveModelUrl(modelUrl);
       setIsTryOnOpen(true);
     }
   };
@@ -332,6 +343,7 @@ const Catalog = () => {
                   {products.map((product) => {
                     const images = getProductImages(product);
                     const category = getProductCategory(product, categories, collections);
+                    const modelUrl = getProductModelUrl(product);
                     const price = Number(product.base_price);
                     return (
                     <ProductCard
@@ -344,6 +356,7 @@ const Catalog = () => {
                       category={category}
                       isNew={product.is_featured}
                       isFavorite={favoriteIds.has(product.id)}
+                      arEnabled={Boolean(modelUrl)}
                       onFavoriteToggle={() => handleFavoriteToggle(product.id)}
                       onARTryOn={handleARTryOn}
                       onProductClick={handleProductClick}
@@ -367,9 +380,12 @@ const Catalog = () => {
 
       <ARModal
         isOpen={isTryOnOpen}
-        modelUrl="/ring.glb"
+        modelUrl={activeModelUrl}
         productName={activeProductName}
-        onClose={() => setIsTryOnOpen(false)}
+        onClose={() => {
+          setIsTryOnOpen(false);
+          setActiveModelUrl(null);
+        }}
       />
     </div>
   );

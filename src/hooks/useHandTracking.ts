@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  FilesetResolver,
+import type {
   HandLandmarker,
-  type HandLandmarkerResult,
-  type NormalizedLandmark,
+  HandLandmarkerResult,
+  NormalizedLandmark,
 } from "@mediapipe/tasks-vision";
 
 export type HandPreference = "auto" | "left" | "right";
@@ -32,6 +31,16 @@ const DEFAULT_WASM_BASE = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@
 // Use the hosted float16 model from the official bucket to avoid CDN 404s
 const DEFAULT_MODEL_PATH =
   "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+
+type MediapipeModule = typeof import("@mediapipe/tasks-vision");
+let mediapipeModulePromise: Promise<MediapipeModule> | null = null;
+
+const loadMediapipeModule = () => {
+  if (!mediapipeModulePromise) {
+    mediapipeModulePromise = import("@mediapipe/tasks-vision");
+  }
+  return mediapipeModulePromise;
+};
 
 export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
   const {
@@ -122,6 +131,7 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
     setIsModelLoading(true);
 
     try {
+      const { FilesetResolver, HandLandmarker } = await loadMediapipeModule();
       const fileset = await FilesetResolver.forVisionTasks(wasmBaseUrl);
       const landmarker = await HandLandmarker.createFromOptions(fileset, {
         baseOptions: {
