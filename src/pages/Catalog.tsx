@@ -10,8 +10,10 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
 import { getProductCategory, getProductImages } from "@/lib/productAdapters";
 import { trackEventSafe } from "@/hooks/useAnalytics";
+import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
 import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
 import { useMe } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const Catalog = () => {
   const [selectedCollection, setSelectedCollection] = useState("All");
@@ -22,6 +24,9 @@ const Catalog = () => {
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
   const { data: me } = useMe();
+  const { toast } = useToast();
+  const { data: favorites = [] } = useFavorites(Boolean(me?.user));
+  const toggleFavorite = useToggleFavorite();
 
   const { data: collections = [] } = useQuery<ApiCollection[]>({
     queryKey: ["collections"],
@@ -88,6 +93,32 @@ const Catalog = () => {
       event_type: "click",
       product: Number(productId),
       user: me?.user?.id,
+    });
+  };
+
+  const favoriteIds = useMemo(
+    () => new Set(favorites.map((favorite) => favorite.product)),
+    [favorites]
+  );
+
+  const handleFavoriteToggle = (productId: number) => {
+    if (!me?.user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to save favorites.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toggleFavorite.mutate(productId, {
+      onError: (error) => {
+        const message = (error as { message?: string })?.message || "Favorite update failed";
+        toast({
+          title: "Favorite failed",
+          description: message,
+          variant: "destructive",
+        });
+      },
     });
   };
 
@@ -312,6 +343,8 @@ const Catalog = () => {
                       hoverImage={images[1] || images[0]}
                       category={category}
                       isNew={product.is_featured}
+                      isFavorite={favoriteIds.has(product.id)}
+                      onFavoriteToggle={() => handleFavoriteToggle(product.id)}
                       onARTryOn={handleARTryOn}
                       onProductClick={handleProductClick}
                     />

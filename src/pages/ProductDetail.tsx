@@ -22,6 +22,7 @@ import { getProductCategory, getProductImages } from "@/lib/productAdapters";
 import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
 import { useAddToCart, useCart } from "@/hooks/useCart";
 import { useMe } from "@/hooks/useAuth";
+import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
 import { trackEventSafe } from "@/hooks/useAnalytics";
 import { useToast } from "@/hooks/use-toast";
 
@@ -57,13 +58,14 @@ const ProductDetail = () => {
   });
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
   const { data: cart } = useCart();
   const addToCart = useAddToCart();
   const canAddToCart = Boolean(cart && product?.variants?.length);
   const { toast } = useToast();
+  const { data: favorites = [] } = useFavorites(Boolean(me?.user));
+  const toggleFavorite = useToggleFavorite();
 
   const images = useMemo(() => (product ? getProductImages(product) : []), [product]);
   const category = useMemo(
@@ -75,6 +77,13 @@ const ProductDetail = () => {
     const lookup = new Map(tags.map((tag) => [tag.id, tag.name]));
     return product.tags.map((tagId) => lookup.get(tagId)).filter(Boolean) as string[];
   }, [product?.tags, tags]);
+
+  const favoriteIds = useMemo(
+    () => new Set(favorites.map((favorite) => favorite.product)),
+    [favorites]
+  );
+
+  const isFavorite = product ? favoriteIds.has(product.id) : false;
 
   type Recommendation = { id: number; user: number; product: number; score: string | number };
 
@@ -161,6 +170,27 @@ const ProductDetail = () => {
       user: me?.user?.id,
     });
   }, [me?.user?.id, product?.id]);
+
+  const handleFavoriteToggle = (productId: number) => {
+    if (!me?.user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to save favorites.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toggleFavorite.mutate(productId, {
+      onError: (error) => {
+        const message = (error as { message?: string })?.message || "Favorite update failed";
+        toast({
+          title: "Favorite failed",
+          description: message,
+          variant: "destructive",
+        });
+      },
+    });
+  };
 
   if (isProductLoading) {
     return (
@@ -369,7 +399,7 @@ const ProductDetail = () => {
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={() => setIsFavorite(!isFavorite)}
+                  onClick={() => handleFavoriteToggle(product.id)}
                   className={`px-6 py-6 border-2 ${
                     isFavorite ? "text-primary border-primary" : "border-border"
                   }`}
@@ -436,6 +466,7 @@ const ProductDetail = () => {
                   {filteredActiveRecommended.map((item) => {
                     const recImages = getProductImages(item);
                     const recCategory = getProductCategory(item, categories, collections);
+                    const recIsFavorite = favoriteIds.has(item.id);
                     return (
                     <ProductCard
                       key={item.id}
@@ -446,6 +477,8 @@ const ProductDetail = () => {
                       hoverImage={recImages[1] || recImages[0]}
                       category={recCategory}
                       isNew={item.is_featured}
+                      isFavorite={recIsFavorite}
+                      onFavoriteToggle={() => handleFavoriteToggle(item.id)}
                       onARTryOn={handleRecommendedARTryOn}
                       onProductClick={(productId) =>
                         trackEventSafe({

@@ -16,6 +16,7 @@ import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLogout, useMe, useUpdateMe } from "@/hooks/useAuth";
+import { useFavorites, useRemoveFavorite } from "@/hooks/useFavorites";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { getProductCategory, getProductImages } from "@/lib/productAdapters";
@@ -48,14 +49,10 @@ const Dashboard = () => {
     queryFn: () => apiClient.get<ApiCollection[]>("/collections/"),
   });
 
-  const initialFavorites = useMemo(() => products.slice(0, 3), [products]);
   const initialRecentViews = useMemo(() => products.slice(2, 6), [products]);
-  const [favorites, setFavorites] = useState<ApiProduct[]>([]);
   const [recentViews, setRecentViews] = useState<ApiProduct[]>([]);
-
-  const removeFavorite = (id: number) => {
-    setFavorites((prev) => prev.filter((p) => p.id !== id));
-  };
+  const { data: favorites = [] } = useFavorites(Boolean(me?.user));
+  const removeFavorite = useRemoveFavorite();
 
   const tabs = [
     { id: "favorites" as TabType, label: "Favorites", icon: Heart },
@@ -76,10 +73,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (products.length) {
-      setFavorites(initialFavorites);
       setRecentViews(initialRecentViews);
     }
-  }, [initialFavorites, initialRecentViews, products.length]);
+  }, [initialRecentViews, products.length]);
 
   const buildCardData = (product: ApiProduct) => {
     const images = getProductImages(product);
@@ -188,12 +184,12 @@ const Dashboard = () => {
 
                   {favorites.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                      {favorites.map((product) => (
-                        <div key={product.id} className="relative">
+                      {favorites.map((favorite) => (
+                        <div key={favorite.id} className="relative">
                           <ProductCard
-                            {...buildCardData(product)}
+                            {...buildCardData(favorite.product_detail)}
                             isFavorite={true}
-                            onFavoriteToggle={() => removeFavorite(product.id)}
+                            onFavoriteToggle={() => removeFavorite.mutate(favorite.id)}
                           />
                         </div>
                       ))}

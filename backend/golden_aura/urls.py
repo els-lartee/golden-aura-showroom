@@ -7,7 +7,7 @@ from rest_framework.routers import DefaultRouter
 from accounts.views import AdminUserViewSet, CsrfView, LoginView, LogoutView, MeView, PasswordResetView, RegisterView, UserProfileViewSet
 from analytics.views import AdminMetricsView, EventBatchView, EventViewSet
 from cart.views import CartItemViewSet, CartViewSet
-from catalog.views import CategoryViewSet, CollectionViewSet, LowInventoryView, ProductMediaViewSet, ProductVariantViewSet, ProductViewSet, TagViewSet
+from catalog.views import CategoryViewSet, CollectionViewSet, FavoriteViewSet, LowInventoryView, ProductMediaViewSet, ProductVariantViewSet, ProductViewSet, TagViewSet
 from orders.views import CheckoutView, OrderItemViewSet, OrderViewSet
 from payments.views import PaymentInitializeView, PaymentVerifyView, PaymentViewSet, PaymentWebhookView
 from promotions.views import ActivePromotionsView, CouponValidateView, CouponViewSet, PromotionRuleViewSet
@@ -22,6 +22,7 @@ router.register("products", ProductViewSet, basename="product")
 router.register("tags", TagViewSet, basename="tag")
 router.register("product-variants", ProductVariantViewSet, basename="product-variant")
 router.register("product-media", ProductMediaViewSet, basename="product-media")
+router.register("favorites", FavoriteViewSet, basename="favorite")
 router.register("carts", CartViewSet, basename="cart")
 router.register("cart-items", CartItemViewSet, basename="cart-item")
 router.register("orders", OrderViewSet, basename="order")

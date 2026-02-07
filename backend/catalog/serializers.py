@@ -1,7 +1,7 @@
 from django.utils.text import slugify
 from rest_framework import serializers
 
-from catalog.models import Category, Collection, Product, ProductMedia, ProductVariant, Tag
+from catalog.models import Category, Collection, Favorite, Product, ProductMedia, ProductVariant, Tag
 
 
 class CollectionSerializer(serializers.ModelSerializer):
@@ -139,3 +139,12 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
+
+
+class FavoriteSerializer(serializers.ModelSerializer):
+    product_detail = ProductSerializer(source="product", read_only=True)
+
+    class Meta:
+        model = Favorite
+        fields = ["id", "user", "product", "product_detail", "created_at"]
+        read_only_fields = ["user", "created_at"]

@@ -1,6 +1,10 @@
+from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 
-from catalog.models import Collection, Product, ProductVariant
+from analytics.models import Event
+from catalog.models import Collection, Favorite, Product, ProductVariant
+
+User = get_user_model()
 
 
 class CatalogApiTests(APITestCase):
@@ -113,3 +117,107 @@ class CatalogApiTests(APITestCase):
         )
         self.assertEqual(tag_response.status_code, 201)
         self.assertEqual(tag_response.data["slug"], "rose-gold")
+
+
+class FavoriteApiTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="alice", password="pass1234")
+        self.other_user = User.objects.create_user(username="bob", password="pass1234")
+        self.product1 = Product.objects.create(
+            title="Gold Ring", slug="gold-ring", base_price="5000.00"
+        )
+        self.product2 = Product.objects.create(
+            title="Silver Necklace", slug="silver-necklace", base_price="3000.00"
+        )
+
+    # -- Auth required --
+    def test_list_requires_auth(self):
+        res = self.client.get("/api/favorites/")
+        self.assertEqual(res.status_code, 403)
+
+    def test_add_requires_auth(self):
+        res = self.client.post("/api/favorites/", {"product": self.product1.id}, format="json")
+        self.assertEqual(res.status_code, 403)
+
+    # -- Add favorite --
+    def test_add_favorite(self):
+        self.client.force_authenticate(user=self.user)
+        res = self.client.post("/api/favorites/", {"product": self.product1.id}, format="json")
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(Favorite.objects.filter(user=self.user).count(), 1)
+        self.assertEqual(res.data["product"], self.product1.id)
+        # product_detail nested
+        self.assertEqual(res.data["product_detail"]["title"], "Gold Ring")
+        self.assertEqual(
+            Event.objects.filter(
+                user=self.user,
+                product=self.product1,
+                event_type=Event.EventType.FAVORITE,
+            ).count(),
+            1,
+        )
+
+    def test_add_favorite_duplicate_rejected(self):
+        self.client.force_authenticate(user=self.user)
+        self.client.post("/api/favorites/", {"product": self.product1.id}, format="json")
+        res = self.client.post("/api/favorites/", {"product": self.product1.id}, format="json")
+        self.assertIn(res.status_code, [400, 409])
+
+    # -- List favorites --
+    def test_list_favorites_only_own(self):
+        Favorite.objects.create(user=self.user, product=self.product1)
+        Favorite.objects.create(user=self.other_user, product=self.product2)
+
+        self.client.force_authenticate(user=self.user)
+        res = self.client.get("/api/favorites/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]["product"], self.product1.id)
+
+    # -- Remove favorite --
+    def test_remove_favorite(self):
+        fav = Favorite.objects.create(user=self.user, product=self.product1)
+        self.client.force_authenticate(user=self.user)
+        res = self.client.delete(f"/api/favorites/{fav.id}/")
+        self.assertEqual(res.status_code, 204)
+        self.assertEqual(Favorite.objects.filter(user=self.user).count(), 0)
+
+    def test_cannot_remove_other_users_favorite(self):
+        fav = Favorite.objects.create(user=self.other_user, product=self.product1)
+        self.client.force_authenticate(user=self.user)
+        res = self.client.delete(f"/api/favorites/{fav.id}/")
+        self.assertEqual(res.status_code, 404)
+
+    # -- Toggle --
+    def test_toggle_adds_when_not_favorited(self):
+        self.client.force_authenticate(user=self.user)
+        res = self.client.post("/api/favorites/toggle/", {"product": self.product1.id}, format="json")
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.data["status"], "added")
+        self.assertEqual(Favorite.objects.filter(user=self.user).count(), 1)
+        self.assertEqual(
+            Event.objects.filter(
+                user=self.user,
+                product=self.product1,
+                event_type=Event.EventType.FAVORITE,
+            ).count(),
+            1,
+        )
+
+    def test_toggle_removes_when_already_favorited(self):
+        Favorite.objects.create(user=self.user, product=self.product1)
+        self.client.force_authenticate(user=self.user)
+        res = self.client.post("/api/favorites/toggle/", {"product": self.product1.id}, format="json")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["status"], "removed")
+        self.assertEqual(Favorite.objects.filter(user=self.user).count(), 0)
+
+    def test_toggle_nonexistent_product(self):
+        self.client.force_authenticate(user=self.user)
+        res = self.client.post("/api/favorites/toggle/", {"product": 9999}, format="json")
+        self.assertEqual(res.status_code, 404)
+
+    def test_toggle_missing_product_field(self):
+        self.client.force_authenticate(user=self.user)
+        res = self.client.post("/api/favorites/toggle/", {}, format="json")
+        self.assertEqual(res.status_code, 400)

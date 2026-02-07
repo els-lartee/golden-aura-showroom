@@ -54,3 +54,11 @@ export type ApiTag = {
   name: string;
   slug: string;
 };
+
+export type ApiFavorite = {
+  id: number;
+  user: number;
+  product: number;
+  product_detail: ApiProduct;
+  created_at: string;
+};

@@ -1,12 +1,15 @@
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from catalog.models import Category, Collection, Product, ProductMedia, ProductVariant, Tag
+from analytics.models import Event
+from catalog.models import Category, Collection, Favorite, Product, ProductMedia, ProductVariant, Tag
 from catalog.serializers import (
     CategorySerializer,
     CollectionSerializer,
+    FavoriteSerializer,
     ProductMediaSerializer,
     ProductSerializer,
     ProductVariantSerializer,
@@ -72,6 +75,72 @@ class ProductMediaViewSet(viewsets.ModelViewSet):
 class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
+
+
+class FavoriteViewSet(viewsets.ModelViewSet):
+    """
+    Authenticated user's favorites.
+    - GET    /favorites/         → list current user's favorites
+    - POST   /favorites/         → add a favorite (body: {product: <id>})
+    - DELETE /favorites/{id}/    → remove by favorite id
+    - POST   /favorites/toggle/  → add or remove, returns {status: "added"|"removed"}
+    """
+
+    serializer_class = FavoriteSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "post", "delete", "head", "options"]
+
+    def get_queryset(self):
+        return (
+            Favorite.objects.filter(user=self.request.user)
+            .select_related("product", "product__category")
+            .prefetch_related("product__media", "product__variants", "product__collections")
+        )
+
+    def create(self, request, *args, **kwargs):
+        """Add a product to favorites. Returns 400 if already favorited."""
+        product_id = request.data.get("product")
+        if not product_id:
+            return Response({"detail": "product is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if Favorite.objects.filter(user=request.user, product_id=product_id).exists():
+            return Response(
+                {"detail": "Already in favorites."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        favorite = Favorite.objects.create(user=request.user, product_id=product_id)
+        Event.objects.create(
+            user=request.user,
+            product_id=product_id,
+            event_type=Event.EventType.FAVORITE,
+            metadata={"source": "favorites"},
+        )
+        serializer = self.get_serializer(favorite)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"])
+    def toggle(self, request):
+        """Toggle favorite: adds if absent, removes if present."""
+        product_id = request.data.get("product")
+        if not product_id:
+            return Response({"detail": "product is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            product = Product.objects.get(pk=product_id)
+        except Product.DoesNotExist:
+            return Response({"detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+        favorite, created = Favorite.objects.get_or_create(user=request.user, product=product)
+        if not created:
+            favorite.delete()
+            return Response({"status": "removed", "product": product.id})
+        Event.objects.create(
+            user=request.user,
+            product=product,
+            event_type=Event.EventType.FAVORITE,
+            metadata={"source": "favorites"},
+        )
+        return Response(
+            {"status": "added", "product": product.id, "id": favorite.id},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class LowInventoryView(APIView):
