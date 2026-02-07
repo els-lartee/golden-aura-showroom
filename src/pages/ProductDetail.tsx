@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -77,6 +77,8 @@ const ProductDetail = () => {
     const lookup = new Map(tags.map((tag) => [tag.id, tag.name]));
     return product.tags.map((tagId) => lookup.get(tagId)).filter(Boolean) as string[];
   }, [product?.tags, tags]);
+
+  const viewStartRef = useRef<number | null>(null);
 
   const favoriteIds = useMemo(
     () => new Set(favorites.map((favorite) => favorite.product)),
@@ -163,12 +165,21 @@ const ProductDetail = () => {
   };
 
   useEffect(() => {
-    if (!product?.id) return;
-    trackEventSafe({
-      event_type: "view",
-      product: product.id,
-      user: me?.user?.id,
-    });
+    if (!product?.id) return undefined;
+    viewStartRef.current = Date.now();
+    const productId = product.id;
+    return () => {
+      const start = viewStartRef.current;
+      if (!start) return;
+      const seconds = Math.round((Date.now() - start) / 1000);
+      if (seconds < 1) return;
+      trackEventSafe({
+        event_type: "view",
+        product: productId,
+        user: me?.user?.id,
+        metadata: { seconds },
+      });
+    };
   }, [me?.user?.id, product?.id]);
 
   const handleFavoriteToggle = (productId: number) => {

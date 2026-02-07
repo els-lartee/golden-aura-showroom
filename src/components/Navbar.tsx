@@ -33,7 +33,6 @@ const Navbar = () => {
     { name: "Home", path: "/" },
     { name: "Collections", path: "/catalog" },
     { name: "New Arrivals", path: "/catalog?filter=new" },
-    { name: "Account", path: "/dashboard" },
     ...(me?.profile?.role === "admin" ? [{ name: "Admin", path: "/admin" }] : []),
   ];
 
