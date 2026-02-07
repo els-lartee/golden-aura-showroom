@@ -5,7 +5,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from accounts.views import AdminUserViewSet, CsrfView, LoginView, LogoutView, MeView, PasswordResetView, RegisterView, UserProfileViewSet
-from analytics.views import AdminMetricsView, EventBatchView, EventViewSet
+from analytics.views import AdminMetricsView, EventBatchView, EventViewSet, RecentViewsView
 from cart.views import CartItemViewSet, CartViewSet
 from catalog.views import CategoryViewSet, CollectionViewSet, FavoriteViewSet, LowInventoryView, ProductMediaViewSet, ProductVariantViewSet, ProductViewSet, TagViewSet
 from orders.views import CheckoutView, OrderItemViewSet, OrderViewSet
@@ -53,6 +53,7 @@ urlpatterns = [
     path("api/coupons/validate", CouponValidateView.as_view()),
     path("api/promotions/active", ActivePromotionsView.as_view()),
     path("api/events/batch", EventBatchView.as_view()),
+    path("api/recent-views", RecentViewsView.as_view()),
     path("api/admin/metrics", AdminMetricsView.as_view()),
     path("api/admin/inventory/low", LowInventoryView.as_view()),
     path("api/", include(router.urls)),

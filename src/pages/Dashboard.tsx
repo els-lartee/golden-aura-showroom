@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -17,9 +17,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLogout, useMe, useUpdateMe } from "@/hooks/useAuth";
 import { useFavorites, useRemoveFavorite } from "@/hooks/useFavorites";
-import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { getProductCategory, getProductImages } from "@/lib/productAdapters";
+import { recentViewsApi } from "@/lib/recentViews";
 import type { ApiCategory, ApiCollection, ApiProduct } from "@/lib/types";
 
 type TabType = "favorites" | "recent" | "profile";
@@ -29,6 +31,8 @@ const Dashboard = () => {
   const { data: me, isLoading } = useMe();
   const logout = useLogout();
   const updateMe = useUpdateMe();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [profileForm, setProfileForm] = useState({
     first_name: "",
     last_name: "",
@@ -36,10 +40,6 @@ const Dashboard = () => {
     phone: "",
   });
 
-  const { data: products = [] } = useQuery<ApiProduct[]>({
-    queryKey: ["products", "dashboard"],
-    queryFn: () => apiClient.get<ApiProduct[]>("/products/", { sort: "-is_featured" }),
-  });
   const { data: categories = [] } = useQuery<ApiCategory[]>({
     queryKey: ["categories"],
     queryFn: () => apiClient.get<ApiCategory[]>("/categories/"),
@@ -49,10 +49,27 @@ const Dashboard = () => {
     queryFn: () => apiClient.get<ApiCollection[]>("/collections/"),
   });
 
-  const initialRecentViews = useMemo(() => products.slice(2, 6), [products]);
-  const [recentViews, setRecentViews] = useState<ApiProduct[]>([]);
+  const { data: recentViews = [] } = useQuery<ApiProduct[]>({
+    queryKey: ["recent-views"],
+    queryFn: () => recentViewsApi.list(8),
+    enabled: Boolean(me?.user),
+  });
   const { data: favorites = [] } = useFavorites(Boolean(me?.user));
   const removeFavorite = useRemoveFavorite();
+  const clearRecentViews = useMutation({
+    mutationFn: recentViewsApi.clear,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recent-views"] });
+      toast({ title: "Recent views cleared" });
+    },
+    onError: () => {
+      toast({
+        title: "Clear failed",
+        description: "Unable to clear recent views.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const tabs = [
     { id: "favorites" as TabType, label: "Favorites", icon: Heart },
@@ -70,12 +87,6 @@ const Dashboard = () => {
       });
     }
   }, [me]);
-
-  useEffect(() => {
-    if (products.length) {
-      setRecentViews(initialRecentViews);
-    }
-  }, [initialRecentViews, products.length]);
 
   const buildCardData = (product: ApiProduct) => {
     const images = getProductImages(product);
@@ -222,7 +233,11 @@ const Dashboard = () => {
                 >
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="font-serif text-2xl">Recently Viewed</h2>
-                    <button className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                    <button
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                      onClick={() => clearRecentViews.mutate()}
+                      disabled={clearRecentViews.isPending}
+                    >
                       Clear History
                     </button>
                   </div>
