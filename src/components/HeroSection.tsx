@@ -125,7 +125,7 @@ const HeroSection = () => {
             transition={{ delay: 1.2, duration: 0.8 }}
             className="hidden lg:flex col-span-2 flex-col items-end justify-end text-right pb-4"
           >
-            <p className="vogue-subheading text-background/50 mb-2">Est. 2010</p>
+            <p className="vogue-subheading text-background/50 mb-2">Est. 2026</p>
             <p className="vogue-caption text-background/70">Accra, Ghana</p>
           </motion.div>
         </div>

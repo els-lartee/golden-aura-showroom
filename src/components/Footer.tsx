@@ -42,7 +42,7 @@ const Footer = () => {
               </h2>
             </Link>
             <p className="vogue-body text-background/60 leading-relaxed mb-8 max-w-sm">
-              Crafting timeless elegance since 2010. Each piece tells a story of 
+              Crafting timeless elegance since 2026. Each piece tells a story of 
               exceptional craftsmanship and enduring beauty.
             </p>
             <div className="flex gap-5">
