@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { Search, ShoppingBag, Heart, User, Menu, X } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, m } from "framer-motion";
+import { Search, Heart, User, Menu, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { useLogout, useMe } from "@/hooks/useAuth";
+import CartDrawer from "@/components/CartDrawer";
+import { promotionsApi } from "@/lib/promotions";
 
 /**
  * Navbar Component - Vogue Editorial Style
@@ -15,17 +19,52 @@ import { Button } from "@/components/ui/button";
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+    navigate(`/catalog?query=${encodeURIComponent(trimmed)}`);
+    setSearchQuery("");
+    setIsSearchOpen(false);
+  };
+  const { data: me } = useMe();
+  const logout = useLogout();
+  const isAuthenticated = Boolean(me?.user);
+  const { data: promotions = [] } = useQuery({
+    queryKey: ["active-promotions"],
+    queryFn: promotionsApi.activePromotions,
+  });
+  const activePromotion = promotions[0];
 
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Collections", path: "/catalog" },
     { name: "New Arrivals", path: "/catalog?filter=new" },
-    { name: "Account", path: "/dashboard" },
+    ...(me?.profile?.role === "admin" ? [{ name: "Admin", path: "/admin" }] : []),
   ];
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+      {activePromotion && (
+        <div className="bg-foreground text-background text-[10px] uppercase tracking-[0.2em] py-2">
+          <div className="container mx-auto px-6 md:px-12 flex items-center justify-between">
+            <span className="text-primary">Offer</span>
+            <span className="text-center flex-1">
+              {activePromotion.name}
+              {activePromotion.description ? ` — ${activePromotion.description}` : ""}
+            </span>
+            <span className="text-primary">
+              {activePromotion.discount_type === "percent"
+                ? `${activePromotion.value}% off`
+                : `₦${activePromotion.value} off`}
+            </span>
+          </div>
+        </div>
+      )}
       <nav className="container mx-auto px-6 md:px-12 py-5">
         <div className="flex items-center justify-between">
           {/* Mobile Menu Button */}
@@ -82,7 +121,7 @@ const Navbar = () => {
                 <Heart size={18} strokeWidth={1.5} />
               </Button>
             </Link>
-            <Link to="/dashboard">
+            <Link to={isAuthenticated ? "/dashboard" : "/login"}>
               <Button
                 variant="ghost"
                 size="icon"
@@ -91,45 +130,38 @@ const Navbar = () => {
                 <User size={18} strokeWidth={1.5} />
               </Button>
             </Link>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative hover:text-primary transition-colors duration-300"
-            >
-              <ShoppingBag size={18} strokeWidth={1.5} />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-medium flex items-center justify-center">
-                0
-              </span>
-            </Button>
+            <CartDrawer />
           </div>
         </div>
 
         {/* Search Bar */}
         <AnimatePresence>
           {isSearchOpen && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               className="overflow-hidden"
             >
-              <div className="pt-5">
+              <form onSubmit={handleSearch} className="pt-5">
                 <input
                   type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search collections..."
                   className="w-full px-0 py-4 bg-transparent border-b border-foreground/20 focus:border-primary focus:outline-none transition-colors duration-300 font-serif text-lg italic placeholder:text-muted-foreground/50"
                   autoFocus
                 />
-              </div>
-            </motion.div>
+              </form>
+            </m.div>
           )}
         </AnimatePresence>
 
         {/* Mobile Menu */}
         <AnimatePresence>
           {isMenuOpen && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -138,7 +170,7 @@ const Navbar = () => {
             >
               <ul className="pt-6 pb-4 space-y-1 border-t border-border mt-5">
                 {navLinks.map((link, index) => (
-                  <motion.li
+                  <m.li
                     key={link.path}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -155,10 +187,32 @@ const Navbar = () => {
                     >
                       {link.name}
                     </Link>
-                  </motion.li>
+                  </m.li>
                 ))}
+                <m.li
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: navLinks.length * 0.1 }}
+                >
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => logout.mutate()}
+                      className="block py-4 font-serif text-xl text-foreground/70 hover:text-foreground transition-colors duration-300"
+                    >
+                      Sign out
+                    </button>
+                  ) : (
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block py-4 font-serif text-xl text-foreground/70 hover:text-foreground transition-colors duration-300"
+                    >
+                      Sign in
+                    </Link>
+                  )}
+                </m.li>
               </ul>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </nav>

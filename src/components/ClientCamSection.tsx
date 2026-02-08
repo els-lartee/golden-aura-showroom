@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { clientImages } from "@/data/products";
 import { Instagram } from "lucide-react";
 
@@ -12,15 +12,15 @@ import { Instagram } from "lucide-react";
  */
 const ClientCamSection = () => {
   return (
-    <section className="py-24 md:py-32 bg-background">
-      <div className="container mx-auto px-6 md:px-12">
+    <section className="py-16 md:py-24 bg-background">
+      <div className="max-w-6xl mx-auto px-6 md:px-12">
         {/* Editorial Header */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 md:mb-20"
+          className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 md:mb-14"
         >
           <div className="max-w-xl">
             <p className="vogue-subheading text-primary mb-4">
@@ -44,57 +44,57 @@ const ClientCamSection = () => {
             <Instagram size={16} strokeWidth={1.5} />
             Follow Us
           </a>
-        </motion.div>
+        </m.div>
 
         {/* Editorial Masonry-style Grid */}
-        <div className="grid grid-cols-12 gap-4 md:gap-6">
-          {/* First large image */}
-          <motion.div
+        <div className="grid grid-cols-2 md:grid-cols-12 md:grid-rows-[220px_220px] lg:grid-rows-[260px_260px] gap-3 md:gap-4">
+          {/* First large image — spans both rows on md+ */}
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.1 }}
-            className="col-span-6 md:col-span-5 row-span-2"
+            className="md:col-span-5 md:row-span-2"
           >
             <ClientImage client={clientImages[0]} variant="large" />
-          </motion.div>
+          </m.div>
 
           {/* Second image */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="col-span-6 md:col-span-4"
+            className="md:col-span-4"
           >
             <ClientImage client={clientImages[1]} />
-          </motion.div>
+          </m.div>
 
           {/* Third image */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="col-span-6 md:col-span-3"
+            className="md:col-span-3"
           >
             <ClientImage client={clientImages[2]} />
-          </motion.div>
+          </m.div>
 
           {/* Fourth image */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.4 }}
-            className="col-span-6 md:col-span-7"
+            className="md:col-span-7"
           >
             <ClientImage client={clientImages[3]} variant="wide" />
-          </motion.div>
+          </m.div>
         </div>
 
         {/* Editorial Quote */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -108,7 +108,7 @@ const ClientCamSection = () => {
           <p className="vogue-subheading text-muted-foreground mt-6">
             — Golden Aura Philosophy
           </p>
-        </motion.div>
+        </m.div>
       </div>
     </section>
   );
@@ -126,13 +126,13 @@ interface ClientImageProps {
 
 const ClientImage = ({ client, variant = "default" }: ClientImageProps) => {
   const aspectClass = variant === "large" 
-    ? "aspect-[3/4]" 
+    ? "aspect-[3/4] md:aspect-auto" 
     : variant === "wide" 
-    ? "aspect-[16/9]" 
-    : "aspect-square";
+    ? "aspect-[16/10] md:aspect-auto" 
+    : "aspect-square md:aspect-auto";
 
   return (
-    <div className={`group relative ${aspectClass} overflow-hidden cursor-pointer`}>
+    <div className={`group relative ${aspectClass} h-full overflow-hidden cursor-pointer`}>
       <img
         src={client.image}
         alt={`${client.name} wearing ${client.product}`}

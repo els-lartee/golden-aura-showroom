@@ -103,6 +103,4 @@ export const RingModel = ({
   return <primitive ref={ringRef} object={gltf.scene} dispose={null} />;
 };
 
-useGLTF.preload("/ring.glb");
-
 export default RingModel;

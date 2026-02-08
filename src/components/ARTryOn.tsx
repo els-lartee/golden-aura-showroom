@@ -1,7 +1,46 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { X, RotateCcw, ZoomIn, ZoomOut, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+const AFRAME_SRC = "https://aframe.io/releases/1.4.2/aframe.min.js";
+const ARJS_SRC = "https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js";
+
+const loadScriptOnce = (src: string) =>
+  new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
+    if (existing?.dataset.loaded === "true") {
+      resolve();
+      return;
+    }
+
+    const script = existing ?? document.createElement("script");
+    if (!existing) {
+      script.src = src;
+      script.async = true;
+      script.dataset.loaded = "false";
+      document.head.appendChild(script);
+    }
+
+    const handleLoad = () => {
+      script.dataset.loaded = "true";
+      cleanup();
+      resolve();
+    };
+
+    const handleError = () => {
+      cleanup();
+      reject(new Error(`Failed to load ${src}`));
+    };
+
+    const cleanup = () => {
+      script.removeEventListener("load", handleLoad);
+      script.removeEventListener("error", handleError);
+    };
+
+    script.addEventListener("load", handleLoad);
+    script.addEventListener("error", handleError);
+  });
 
 /**
  * Props for the ARTryOn component.
@@ -64,28 +103,43 @@ const ARTryOn = ({ modelUrl, productName, onClose, onLoaded }: ARTryOnProps) => 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Check if A-Frame and AR.js are loaded
-    if (typeof (window as any).AFRAME === 'undefined') {
-      setError('AR libraries not loaded. Please refresh the page.');
-      setIsLoading(false);
-      return;
-    }
+    let cancelled = false;
+    let cleanupScene: (() => void) | null = null;
 
-    setIsLoading(true);
-    setError(null);
+    const initScene = async () => {
+      setIsLoading(true);
+      setError(null);
 
-    /**
-     * Create the A-Frame AR scene.
-     * 
-     * Key Components:
-     * - a-scene: The main AR scene with AR.js integration
-     * - a-marker: Detects the Hiro pattern marker
-     * - a-gltf-model: Loads the 3D jewellery model from backend URL
-     * - a-entity camera: Required for AR view
-     * 
-     * The model URL is dynamically set from the prop (backend data).
-     */
-    const sceneHTML = `
+      try {
+        await loadScriptOnce(AFRAME_SRC);
+        await loadScriptOnce(ARJS_SRC);
+      } catch (error) {
+        if (!cancelled) {
+          setError('AR libraries not loaded. Please refresh the page.');
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (cancelled) return;
+      if (typeof (window as any).AFRAME === 'undefined') {
+        setError('AR libraries not loaded. Please refresh the page.');
+        setIsLoading(false);
+        return;
+      }
+
+      /**
+       * Create the A-Frame AR scene.
+       * 
+       * Key Components:
+       * - a-scene: The main AR scene with AR.js integration
+       * - a-marker: Detects the Hiro pattern marker
+       * - a-gltf-model: Loads the 3D jewellery model from backend URL
+       * - a-entity camera: Required for AR view
+       * 
+       * The model URL is dynamically set from the prop (backend data).
+       */
+      const sceneHTML = `
       <a-scene
         embedded
         arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
@@ -112,40 +166,47 @@ const ARTryOn = ({ modelUrl, productName, onClose, onLoaded }: ARTryOnProps) => 
       </a-scene>
     `;
 
-    // Insert the scene HTML
-    containerRef.current.innerHTML = sceneHTML;
+      // Insert the scene HTML
+      containerRef.current.innerHTML = sceneHTML;
 
-    // Wait for scene to load
-    const scene = document.getElementById('ar-scene') as any;
-    if (scene) {
-      scene.addEventListener('loaded', () => {
-        setIsLoading(false);
-        onLoaded?.();
-      });
+      // Wait for scene to load
+      const scene = document.getElementById('ar-scene') as any;
+      if (scene) {
+        scene.addEventListener('loaded', () => {
+          setIsLoading(false);
+          onLoaded?.();
+        });
 
-      // Handle errors
-      scene.addEventListener('arError', () => {
-        setError('Failed to initialize AR. Please ensure camera access is allowed.');
-        setIsLoading(false);
-      });
-    }
-
-    // Set loading complete after a timeout if no events fire
-    const timeout = setTimeout(() => {
-      setIsLoading(false);
-    }, 5000);
-
-    // Cleanup function
-    return () => {
-      clearTimeout(timeout);
-      if (containerRef.current) {
-        // Properly dispose of the A-Frame scene
-        const scene = containerRef.current.querySelector('a-scene') as any;
-        if (scene && scene.destroy) {
-          scene.destroy();
-        }
-        containerRef.current.innerHTML = '';
+        // Handle errors
+        scene.addEventListener('arError', () => {
+          setError('Failed to initialize AR. Please ensure camera access is allowed.');
+          setIsLoading(false);
+        });
       }
+
+      // Set loading complete after a timeout if no events fire
+      const timeout = setTimeout(() => {
+        setIsLoading(false);
+      }, 5000);
+
+      cleanupScene = () => {
+        clearTimeout(timeout);
+        if (containerRef.current) {
+          // Properly dispose of the A-Frame scene
+          const scene = containerRef.current.querySelector('a-scene') as any;
+          if (scene && scene.destroy) {
+            scene.destroy();
+          }
+          containerRef.current.innerHTML = '';
+        }
+      };
+    };
+
+    void initScene();
+
+    return () => {
+      cancelled = true;
+      cleanupScene?.();
     };
   }, [modelUrl, onLoaded]);
 
@@ -185,7 +246,7 @@ const ARTryOn = ({ modelUrl, productName, onClose, onLoaded }: ARTryOnProps) => 
 
   return (
     <AnimatePresence>
-      <motion.div
+      <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -297,7 +358,7 @@ const ARTryOn = ({ modelUrl, productName, onClose, onLoaded }: ARTryOnProps) => 
         <div className="hidden md:block absolute bottom-4 left-4 z-20">
           <p className="text-xs text-background/50">Press ESC to exit</p>
         </div>
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   );
 };

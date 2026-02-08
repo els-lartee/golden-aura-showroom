@@ -1,0 +1,63 @@
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
+from accounts.views import AdminUserViewSet, CsrfView, LoginView, LogoutView, MeView, PasswordResetView, RegisterView, UserProfileViewSet
+from analytics.views import AdminMetricsView, EventBatchView, EventViewSet, RecentViewsView
+from cart.views import CartItemViewSet, CartViewSet
+from catalog.views import CategoryViewSet, CollectionViewSet, FavoriteViewSet, LowInventoryView, ProductMediaViewSet, ProductVariantViewSet, ProductViewSet, TagViewSet
+from orders.views import CheckoutView, OrderItemViewSet, OrderViewSet
+from payments.views import PaymentInitializeView, PaymentVerifyView, PaymentViewSet, PaymentWebhookView
+from promotions.views import ActivePromotionsView, CouponValidateView, CouponViewSet, PromotionRuleViewSet
+from recommendations.views import ProductFeatureViewSet, RecommendationViewSet, UserFeatureViewSet
+
+router = DefaultRouter()
+router.register("profiles", UserProfileViewSet, basename="profile")
+router.register("admin/users", AdminUserViewSet, basename="admin-users")
+router.register("collections", CollectionViewSet, basename="collection")
+router.register("categories", CategoryViewSet, basename="category")
+router.register("products", ProductViewSet, basename="product")
+router.register("tags", TagViewSet, basename="tag")
+router.register("product-variants", ProductVariantViewSet, basename="product-variant")
+router.register("product-media", ProductMediaViewSet, basename="product-media")
+router.register("favorites", FavoriteViewSet, basename="favorite")
+router.register("carts", CartViewSet, basename="cart")
+router.register("cart-items", CartItemViewSet, basename="cart-item")
+router.register("orders", OrderViewSet, basename="order")
+router.register("order-items", OrderItemViewSet, basename="order-item")
+router.register("payments", PaymentViewSet, basename="payment")
+router.register("coupons", CouponViewSet, basename="coupon")
+router.register("promotion-rules", PromotionRuleViewSet, basename="promotion-rule")
+router.register("events", EventViewSet, basename="event")
+router.register("user-features", UserFeatureViewSet, basename="user-feature")
+router.register("product-features", ProductFeatureViewSet, basename="product-feature")
+router.register("recommendations", RecommendationViewSet, basename="recommendation")
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("api/auth/register", RegisterView.as_view()),
+    path("api/auth/csrf", CsrfView.as_view()),
+    path("api/auth/login", LoginView.as_view()),
+    path("api/auth/logout", LogoutView.as_view()),
+    path("api/auth/password-reset", PasswordResetView.as_view()),
+    path("api/me", MeView.as_view()),
+    path("api/cart/current", CartViewSet.as_view({"get": "current"})),
+    path("api/cart/merge", CartViewSet.as_view({"post": "merge"})),
+    path("api/cart/abandon", CartViewSet.as_view({"post": "abandon"})),
+    path("api/checkout", CheckoutView.as_view()),
+    path("api/payments/initialize", PaymentInitializeView.as_view()),
+    path("api/payments/verify", PaymentVerifyView.as_view()),
+    path("api/payments/webhook", PaymentWebhookView.as_view()),
+    path("api/coupons/validate", CouponValidateView.as_view()),
+    path("api/promotions/active", ActivePromotionsView.as_view()),
+    path("api/events/batch", EventBatchView.as_view()),
+    path("api/recent-views", RecentViewsView.as_view()),
+    path("api/admin/metrics", AdminMetricsView.as_view()),
+    path("api/admin/inventory/low", LowInventoryView.as_view()),
+    path("api/", include(router.urls)),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

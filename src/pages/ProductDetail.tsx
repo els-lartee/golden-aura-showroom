@@ -1,22 +1,22 @@
-import { useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Camera,
-  Heart,
-  ShoppingBag,
-  ChevronLeft,
-  ChevronRight,
-  Truck,
-  Shield,
-  RotateCcw,
-} from "lucide-react";
+import { m } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import ProductCard from "@/components/ProductCard";
 import ARModal from "@/components/ARModal";
-import { Button } from "@/components/ui/button";
-import { products } from "@/data/products";
+import { apiClient } from "@/lib/api";
+import { getProductCategory, getProductImages, getProductModelUrl } from "@/lib/productAdapters";
+import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
+import { useAddToCart, useCart } from "@/hooks/useCart";
+import { useMe } from "@/hooks/useAuth";
+import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
+import { trackEventSafe } from "@/hooks/useAnalytics";
+import { useToast } from "@/hooks/use-toast";
+
+const ProductGallery = lazy(() => import("./product-detail/ProductGallery"));
+const ProductInfoPanel = lazy(() => import("./product-detail/ProductInfoPanel"));
+const RecommendedProducts = lazy(() => import("./product-detail/RecommendedProducts"));
 
 /**
  * ProductDetail Page - Swiss Design with AR Integration
@@ -29,11 +29,253 @@ import { products } from "@/data/products";
  */
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const product = products.find((p) => p.id === id);
+  const { data: me } = useMe();
+  const { data: collections = [] } = useQuery<ApiCollection[]>({
+    queryKey: ["collections"],
+    queryFn: () => apiClient.get<ApiCollection[]>("/collections/"),
+  });
+  const { data: categories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ["categories"],
+    queryFn: () => apiClient.get<ApiCategory[]>("/categories/"),
+  });
+  const { data: tags = [] } = useQuery<ApiTag[]>({
+    queryKey: ["tags"],
+    queryFn: () => apiClient.get<ApiTag[]>("/tags/"),
+  });
+
+  const { data: product, isLoading: isProductLoading } = useQuery<ApiProduct>({
+    queryKey: ["product", id],
+    queryFn: () => apiClient.get<ApiProduct>(`/products/${id}/`),
+    enabled: Boolean(id),
+  });
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
+  const [activeModelUrl, setActiveModelUrl] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
+  const { data: cart } = useCart();
+  const addToCart = useAddToCart();
+  const { toast } = useToast();
+  const { data: favorites = [] } = useFavorites(Boolean(me?.user));
+  const toggleFavorite = useToggleFavorite();
+
+  const images = useMemo(() => (product ? getProductImages(product) : []), [product]);
+  const category = useMemo(
+    () => (product ? getProductCategory(product, categories, collections) : "Category"),
+    [product, categories, collections]
+  );
+  const tagNames = useMemo(() => {
+    if (!product?.tags?.length) return [] as string[];
+    const lookup = new Map(tags.map((tag) => [tag.id, tag.name]));
+    return product.tags.map((tagId) => lookup.get(tagId)).filter(Boolean) as string[];
+  }, [product?.tags, tags]);
+
+  const defaultVariant = useMemo(() => {
+    if (!product?.variants?.length) return null;
+    return product.variants.find((variant) => variant.is_active) ?? product.variants[0];
+  }, [product?.variants]);
+
+  const selectedVariant = useMemo(() => {
+    if (!product?.variants?.length) return null;
+    if (!selectedVariantId) return defaultVariant;
+    return (
+      product.variants.find((variant) => String(variant.id) === selectedVariantId) ??
+      defaultVariant
+    );
+  }, [defaultVariant, product?.variants, selectedVariantId]);
+
+  const canAddToCart = Boolean(cart && selectedVariant && selectedVariant.is_active);
+
+  useEffect(() => {
+    if (!defaultVariant) return;
+    setSelectedVariantId(String(defaultVariant.id));
+  }, [defaultVariant, product?.id]);
+
+  const viewStartRef = useRef<number | null>(null);
+
+  const favoriteIds = useMemo(
+    () => new Set(favorites.map((favorite) => favorite.product)),
+    [favorites]
+  );
+
+  const isFavorite = product ? favoriteIds.has(product.id) : false;
+
+  type Recommendation = { id: number; user: number; product: number; score: string | number };
+
+  const { data: recommendations = [] } = useQuery<Recommendation[]>({
+    queryKey: ["recommendations", me?.user?.id],
+    queryFn: () => apiClient.get<Recommendation[]>("/recommendations/", { user_id: me?.user?.id }),
+    enabled: Boolean(me?.user?.id),
+  });
+
+  const { data: recommendedProducts = [], isLoading: isRecommendationsLoading } = useQuery<
+    ApiProduct[]
+  >({
+    queryKey: ["recommended-products", recommendations],
+    queryFn: async () => {
+      if (!recommendations.length) return [];
+      const productIds = recommendations
+        .map((rec) => rec.product)
+        .filter(Boolean)
+        .slice(0, 8);
+      const products = await Promise.all(
+        productIds.map((productId) => apiClient.get<ApiProduct>(`/products/${productId}/`))
+      );
+      return products;
+    },
+    enabled: recommendations.length > 0,
+  });
+
+  const { data: collectionRecommendedProducts = [] } = useQuery<ApiProduct[]>({
+    queryKey: ["recommended-collection", product?.collections?.[0]],
+    queryFn: () =>
+      apiClient.get<ApiProduct[]>("/products/", {
+        collection: product?.collections?.[0],
+        sort: "-is_featured",
+      }),
+    enabled: Boolean(product?.collections?.length),
+  });
+
+  const activeRecommended = recommendedProducts.length
+    ? recommendedProducts
+    : collectionRecommendedProducts;
+
+  const filteredActiveRecommended = activeRecommended
+    .filter((item) => String(item.id) !== id)
+    .slice(0, 4);
+
+  const hasModel = Boolean(product && getProductModelUrl(product));
+
+  const nextImage = () => {
+    setSelectedImageIndex((prev) =>
+      prev === images.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const prevImage = () => {
+    setSelectedImageIndex((prev) =>
+      prev === 0 ? images.length - 1 : prev - 1
+    );
+  };
+
+  /**
+   * Handle AR Try-On button click.
+   */
+  const handleARTryOn = () => {
+    if (product) {
+      const modelUrl = getProductModelUrl(product);
+      if (!modelUrl) {
+        toast({
+          title: "AR model unavailable",
+          description: "This item does not have a 3D model yet.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setActiveProductName(product.title);
+      setActiveModelUrl(modelUrl);
+      setIsTryOnOpen(true);
+    }
+  };
+
+  const handleAddToCart = () => {
+    if (!cart || !selectedVariant || !product) return;
+    addToCart.mutate(
+      {
+        cart: cart.id,
+        product_variant: selectedVariant.id,
+        quantity: 1,
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Added to bag" });
+          trackEventSafe({
+            event_type: "add_to_cart",
+            product: product.id,
+            user: me?.user?.id,
+          });
+        },
+        onError: (error) => {
+          const message =
+            (error as { message?: string })?.message || "Add to cart failed";
+          toast({
+            title: "Add to bag failed",
+            description: message,
+            variant: "destructive",
+          });
+        },
+      }
+    );
+  };
+
+  /**
+   * Handle AR try-on for recommended products
+   */
+  const handleRecommendedARTryOn = (productId: string) => {
+    const productData = activeRecommended.find(p => String(p.id) === productId);
+    if (productData) {
+      const modelUrl = getProductModelUrl(productData);
+      if (!modelUrl) {
+        toast({
+          title: "AR model unavailable",
+          description: "This item does not have a 3D model yet.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setActiveProductName(productData.title);
+      setActiveModelUrl(modelUrl);
+      setIsTryOnOpen(true);
+    }
+  };
+
+  useEffect(() => {
+    if (!product?.id) return undefined;
+    viewStartRef.current = Date.now();
+    const productId = product.id;
+    return () => {
+      const start = viewStartRef.current;
+      if (!start) return;
+      const seconds = Math.round((Date.now() - start) / 1000);
+      if (seconds < 1) return;
+      trackEventSafe({
+        event_type: "view",
+        product: productId,
+        user: me?.user?.id,
+        metadata: { seconds },
+      });
+    };
+  }, [me?.user?.id, product?.id]);
+
+  const handleFavoriteToggle = (productId: number) => {
+    if (!me?.user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to save favorites.",
+        variant: "destructive",
+      });
+      return;
+    }
+    toggleFavorite.mutate(productId, {
+      onError: (error) => {
+        const message = (error as { message?: string })?.message || "Favorite update failed";
+        toast({
+          title: "Favorite failed",
+          description: message,
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
+  if (isProductLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lg font-semibold">Loading product...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -43,48 +285,13 @@ const ProductDetail = () => {
     );
   }
 
-  const recommendedProducts = products
-    .filter((p) => p.id !== id && p.category === product.category)
-    .slice(0, 4);
-
-  const nextImage = () => {
-    setSelectedImageIndex((prev) =>
-      prev === product.images.length - 1 ? 0 : prev + 1
-    );
-  };
-
-  const prevImage = () => {
-    setSelectedImageIndex((prev) =>
-      prev === 0 ? product.images.length - 1 : prev - 1
-    );
-  };
-
-  /**
-   * Handle AR Try-On button click.
-   */
-  const handleARTryOn = () => {
-    setActiveProductName(product.name);
-    setIsTryOnOpen(true);
-  };
-
-  /**
-   * Handle AR try-on for recommended products
-   */
-  const handleRecommendedARTryOn = (productId: string) => {
-    const productData = products.find(p => p.id === productId);
-    if (productData) {
-      setActiveProductName(productData.name);
-      setIsTryOnOpen(true);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="pt-20 pb-16">
         <div className="container mx-auto px-4">
           {/* Breadcrumb - Swiss Style */}
-          <motion.nav
+          <m.nav
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-8 pt-4"
@@ -97,223 +304,58 @@ const ProductDetail = () => {
               Collections
             </Link>
             <span>/</span>
-            <span className="text-foreground uppercase tracking-wide">{product.name}</span>
-          </motion.nav>
+            <span className="text-foreground uppercase tracking-wide">{product.title}</span>
+          </m.nav>
 
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
-            {/* Image Gallery */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-4"
-            >
-              {/* Main Image */}
-              <div className="relative aspect-square bg-secondary overflow-hidden">
-                <AnimatePresence mode="wait">
-                  <motion.img
-                    key={selectedImageIndex}
-                    src={product.images[selectedImageIndex]}
-                    alt={product.name}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="w-full h-full object-cover"
-                  />
-                </AnimatePresence>
+            <Suspense fallback={<div className="min-h-[420px]" />}>
+              <ProductGallery
+                images={images}
+                selectedIndex={selectedImageIndex}
+                onSelectImage={setSelectedImageIndex}
+                onNext={nextImage}
+                onPrev={prevImage}
+                productTitle={product.title}
+              />
+            </Suspense>
 
-                {/* Navigation Arrows */}
-                <button
-                  onClick={prevImage}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-background hover:bg-secondary transition-colors"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <button
-                  onClick={nextImage}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-background hover:bg-secondary transition-colors"
-                >
-                  <ChevronRight size={20} />
-                </button>
-
-                {/* Image Counter */}
-                <div className="absolute bottom-4 left-4 px-3 py-1 bg-background text-xs font-bold tracking-wide">
-                  {selectedImageIndex + 1} / {product.images.length}
-                </div>
-              </div>
-
-              {/* Thumbnails */}
-              <div className="flex gap-2">
-                {product.images.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImageIndex(index)}
-                    className={`relative w-20 h-20 overflow-hidden transition-all ${
-                      selectedImageIndex === index
-                        ? "ring-2 ring-foreground"
-                        : "opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <img
-                      src={image}
-                      alt={`${product.name} view ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Product Info */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="lg:py-4"
-            >
-              {product.isNew && (
-                <span className="inline-block px-3 py-1 bg-foreground text-background text-[10px] font-bold tracking-[0.15em] uppercase mb-4">
-                  New Arrival
-                </span>
-              )}
-
-              <p className="text-muted-foreground text-xs font-semibold uppercase tracking-[0.15em] mb-2">
-                {product.category}
-              </p>
-
-              <h1 className="swiss-heading text-foreground mb-4">
-                {product.name}
-              </h1>
-
-              <p className="text-2xl font-bold text-foreground mb-6 tracking-tight">
-                GH₵ {product.price.toLocaleString()}
-              </p>
-
-              <div className="swiss-grid-line mb-6" />
-
-              <p className="text-muted-foreground leading-relaxed mb-8 text-sm">
-                {product.description}
-              </p>
-
-              {/* AR Try-On Button - PROMINENT SWISS STYLE */}
-              <motion.div
-                className="mb-6"
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-              >
-                <Button
-                  onClick={handleARTryOn}
-                  size="lg"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-7 text-sm font-bold tracking-[0.1em] uppercase ar-pulse relative overflow-hidden"
-                >
-                  <Camera size={20} className="mr-3" />
-                  AR Virtual Try-On
-                  <span className="ml-3 px-2 py-0.5 bg-primary-foreground/20 text-[10px] font-bold">
-                    BETA
-                  </span>
-                </Button>
-              </motion.div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 mb-8">
-                <Button
-                  size="lg"
-                  className="flex-1 bg-foreground hover:bg-foreground/90 text-background py-6 font-semibold tracking-wide"
-                >
-                  <ShoppingBag size={18} className="mr-2" />
-                  Add to Bag
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => setIsFavorite(!isFavorite)}
-                  className={`px-6 py-6 border-2 ${
-                    isFavorite ? "text-primary border-primary" : "border-border"
-                  }`}
-                >
-                  <Heart
-                    size={18}
-                    className={isFavorite ? "fill-primary" : ""}
-                  />
-                </Button>
-              </div>
-
-              {/* Product Details */}
-              <div className="space-y-4 border-t-2 border-foreground pt-8 mb-8">
-                <h3 className="text-sm font-bold uppercase tracking-[0.1em]">Product Details</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Material</p>
-                    <p className="font-semibold">{product.material}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Weight</p>
-                    <p className="font-semibold">{product.weight}</p>
-                  </div>
-                  {product.dimensions && (
-                    <div>
-                      <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Dimensions</p>
-                      <p className="font-semibold">{product.dimensions}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Trust Badges - Swiss Grid */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-secondary">
-                  <Truck size={20} className="mx-auto mb-2 text-primary" />
-                  <p className="text-[10px] font-semibold uppercase tracking-wide">Free Delivery</p>
-                </div>
-                <div className="text-center p-4 bg-secondary">
-                  <Shield size={20} className="mx-auto mb-2 text-primary" />
-                  <p className="text-[10px] font-semibold uppercase tracking-wide">Authentic</p>
-                </div>
-                <div className="text-center p-4 bg-secondary">
-                  <RotateCcw size={20} className="mx-auto mb-2 text-primary" />
-                  <p className="text-[10px] font-semibold uppercase tracking-wide">30-Day Return</p>
-                </div>
-              </div>
-            </motion.div>
+            <Suspense fallback={<div className="min-h-[420px]" />}>
+              <ProductInfoPanel
+                product={product}
+                category={category}
+                tagNames={tagNames}
+                selectedVariantId={selectedVariantId}
+                onVariantChange={setSelectedVariantId}
+                selectedVariant={selectedVariant}
+                canAddToCart={canAddToCart}
+                isAdding={addToCart.isPending}
+                isFavorite={isFavorite}
+                onAddToCart={handleAddToCart}
+                onFavoriteToggle={() => handleFavoriteToggle(product.id)}
+                onARTryOn={handleARTryOn}
+                hasModel={hasModel}
+              />
+            </Suspense>
           </div>
 
-          {/* Recommended Products */}
-          {recommendedProducts.length > 0 && (
-            <section className="mt-20 pt-12 border-t-2 border-foreground">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="mb-12">
-                  <p className="swiss-subheading text-primary mb-2">
-                    AI-Powered Suggestions
-                  </p>
-                  <h2 className="swiss-heading text-foreground">
-                    Recommended for You
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                  {recommendedProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      id={product.id}
-                      name={product.name}
-                      price={product.price}
-                      image={product.images[0]}
-                      hoverImage={product.images[1]}
-                      category={product.category}
-                      isNew={product.isNew}
-                      onARTryOn={handleRecommendedARTryOn}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            </section>
-          )}
+          <Suspense fallback={<div className="min-h-[200px]" />}>
+            <RecommendedProducts
+              items={filteredActiveRecommended}
+              categories={categories}
+              collections={collections}
+              favoriteIds={favoriteIds}
+              onFavoriteToggle={handleFavoriteToggle}
+              onARTryOn={handleRecommendedARTryOn}
+              onProductClick={(productId) =>
+                trackEventSafe({
+                  event_type: "click",
+                  product: Number(productId),
+                  user: me?.user?.id,
+                })
+              }
+              isLoading={isRecommendationsLoading}
+            />
+          </Suspense>
         </div>
       </main>
       <Footer />
@@ -321,9 +363,12 @@ const ProductDetail = () => {
       {/* AR Modal - Rendered via Portal */}
       <ARModal
         isOpen={isTryOnOpen}
-        modelUrl="/ring.glb"
+        modelUrl={activeModelUrl}
         productName={activeProductName}
-        onClose={() => setIsTryOnOpen(false)}
+        onClose={() => {
+          setIsTryOnOpen(false);
+          setActiveModelUrl(null);
+        }}
       />
     </div>
   );

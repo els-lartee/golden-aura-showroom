@@ -1,6 +1,11 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { apiClient } from "@/lib/api";
+import type { ApiCategory } from "@/lib/types";
 
 /**
  * CollectionBanner Component - Vogue Editorial Style
@@ -11,38 +16,56 @@ import { ArrowRight } from "lucide-react";
  * - Elegant hover animations
  */
 const CollectionBanner = () => {
+  const { data: categories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ["categories"],
+    queryFn: () => apiClient.get<ApiCategory[]>("/categories/"),
+  });
+
   const collections = [
     {
       name: "Rings",
       description: "Symbols of eternal devotion",
       image: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=800&q=80",
-      link: "/catalog?category=Rings"
+      link: "/catalog"
     },
     {
       name: "Necklaces",
       description: "Grace for every neckline",
       image: "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800&q=80",
-      link: "/catalog?category=Necklaces"
+      link: "/catalog"
     },
     {
       name: "Bracelets",
       description: "Elegance in motion",
       image: "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=800&q=80",
-      link: "/catalog?category=Bracelets"
+      link: "/catalog"
     },
     {
       name: "Earrings",
       description: "Frame your radiance",
       image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&q=80",
-      link: "/catalog?category=Earrings"
+      link: "/catalog"
     }
   ];
+
+  const categoryLinks = useMemo(() => {
+    if (!categories.length) return collections;
+    return collections.map((collection) => {
+      const match = categories.find(
+        (category) => category.name.toLowerCase() === collection.name.toLowerCase(),
+      );
+      return {
+        ...collection,
+        link: match ? `/catalog?category=${match.id}` : "/catalog",
+      };
+    });
+  }, [categories, collections]);
 
   return (
     <section className="py-24 md:py-32 bg-secondary">
       <div className="container mx-auto px-6 md:px-12">
         {/* Editorial Header */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -56,23 +79,23 @@ const CollectionBanner = () => {
             Our Collections
           </h2>
           <div className="editorial-line mx-auto" />
-        </motion.div>
+        </m.div>
 
-        {/* Editorial Grid */}
-        <div className="grid grid-cols-12 gap-4 md:gap-6">
-          {/* Large left banner */}
-          <motion.div
+        {/* Editorial Bento Grid */}
+        <div className="grid grid-cols-12 md:grid-rows-2 gap-4 md:gap-6">
+          {/* Large left banner — spans both rows on md+ */}
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.1 }}
-            className="col-span-12 md:col-span-7"
+            className="col-span-12 md:col-span-7 md:row-span-2"
           >
-            <Link to={collections[0].link} className="block group">
-              <div className="relative aspect-[4/5] md:aspect-[4/3] overflow-hidden">
+            <Link to={categoryLinks[0].link} className="block group h-full">
+              <div className="relative aspect-[4/5] sm:aspect-[3/4] md:aspect-auto md:h-full overflow-hidden">
                 <img
                   src={collections[0].image}
-                  alt={collections[0].name}
+                  alt={categoryLinks[0].name}
                   className="w-full h-full object-cover editorial-image transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />
@@ -83,10 +106,10 @@ const CollectionBanner = () => {
                     Collection
                   </p>
                   <h3 className="font-serif text-4xl md:text-5xl text-background mb-3 italic">
-                    {collections[0].name}
+                    {categoryLinks[0].name}
                   </h3>
                   <p className="vogue-caption text-background/80 mb-6">
-                    {collections[0].description}
+                    {categoryLinks[0].description}
                   </p>
                   <span className="inline-flex items-center gap-2 vogue-subheading text-[10px] text-background/90 group-hover:text-primary transition-colors duration-300">
                     Explore
@@ -95,79 +118,78 @@ const CollectionBanner = () => {
                 </div>
               </div>
             </Link>
-          </motion.div>
+          </m.div>
 
-          {/* Right stacked banners */}
-          <div className="col-span-12 md:col-span-5 grid grid-rows-2 gap-4 md:gap-6">
-            {collections.slice(1, 3).map((collection, index) => (
-              <motion.div
-                key={collection.name}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
-              >
-                <Link to={collection.link} className="block group h-full">
-                  <div className="relative h-full min-h-[200px] overflow-hidden">
-                    <img
-                      src={collection.image}
-                      alt={collection.name}
-                      className="w-full h-full object-cover editorial-image transition-transform duration-700 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />
-                    
-                    <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                      <h3 className="font-serif text-2xl md:text-3xl text-background mb-2 italic">
-                        {collection.name}
-                      </h3>
-                      <p className="vogue-caption text-background/80 text-sm">
-                        {collection.description}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Bottom wide banner */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="col-span-12"
-          >
-            <Link to={collections[3].link} className="block group">
-              <div className="relative aspect-[21/9] overflow-hidden">
-                <img
-                  src={collections[3].image}
-                  alt={collections[3].name}
-                  className="w-full h-full object-cover editorial-image transition-transform duration-700 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-foreground/70 via-foreground/30 to-transparent" />
-                
-                <div className="absolute inset-0 flex items-center p-8 md:p-16">
-                  <div>
-                    <p className="vogue-subheading text-primary mb-3">
-                      Collection
-                    </p>
-                    <h3 className="font-serif text-3xl md:text-5xl text-background mb-3 italic">
-                      {collections[3].name}
+          {/* Right stacked banners — each takes one grid row */}
+          {categoryLinks.slice(1, 3).map((collection, index) => (
+            <m.div
+              key={collection.name}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.2 + index * 0.1 }}
+              className="col-span-12 md:col-span-5"
+            >
+              <Link to={collection.link} className="block group">
+                <div className="relative aspect-[4/3] sm:aspect-[3/2] overflow-hidden">
+                  <img
+                    src={collection.image}
+                    alt={collection.name}
+                    className="w-full h-full object-cover editorial-image transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/20 to-transparent" />
+                  
+                  <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                    <h3 className="font-serif text-2xl md:text-3xl text-background mb-2 italic">
+                      {collection.name}
                     </h3>
-                    <p className="vogue-caption text-background/80 mb-6 max-w-md">
-                      {collections[3].description}
+                    <p className="vogue-caption text-background/80 text-sm">
+                      {collection.description}
                     </p>
-                    <span className="inline-flex items-center gap-2 vogue-subheading text-[10px] text-background/90 group-hover:text-primary transition-colors duration-300">
-                      Explore Collection
-                      <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform duration-300" />
-                    </span>
                   </div>
                 </div>
-              </div>
-            </Link>
-          </motion.div>
+              </Link>
+            </m.div>
+          ))}
         </div>
+
+        {/* Bottom wide banner */}
+        <m.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="mt-6 md:mt-8"
+        >
+          <Link to={categoryLinks[3].link} className="block group">
+            <div className="relative aspect-[21/9] overflow-hidden">
+              <img
+                src={collections[3].image}
+                alt={categoryLinks[3].name}
+                className="w-full h-full object-cover editorial-image transition-transform duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-foreground/70 via-foreground/30 to-transparent" />
+              
+              <div className="absolute inset-0 flex items-center p-8 md:p-16">
+                <div>
+                  <p className="vogue-subheading text-primary mb-3">
+                    Collection
+                  </p>
+                  <h3 className="font-serif text-3xl md:text-5xl text-background mb-3 italic">
+                    {categoryLinks[3].name}
+                  </h3>
+                  <p className="vogue-caption text-background/80 mb-6 max-w-md">
+                    {categoryLinks[3].description}
+                  </p>
+                  <span className="inline-flex items-center gap-2 vogue-subheading text-[10px] text-background/90 group-hover:text-primary transition-colors duration-300">
+                    Explore Collection
+                    <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform duration-300" />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </m.div>
       </div>
     </section>
   );

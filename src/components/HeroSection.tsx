@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ const HeroSection = () => {
       <div className="relative container mx-auto px-6 md:px-12 pb-16 md:pb-24 pt-32">
         <div className="grid grid-cols-12 gap-4">
           {/* Left Editorial Marker */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.8 }}
@@ -40,27 +40,27 @@ const HeroSection = () => {
             <p className="text-primary/80 text-[10px] tracking-[0.3em] uppercase writing-mode-vertical transform rotate-180" style={{ writingMode: 'vertical-rl' }}>
               2024 Collection
             </p>
-          </motion.div>
+          </m.div>
 
           {/* Main Content */}
           <div className="col-span-12 md:col-span-10 lg:col-span-8">
-            <motion.div
+            <m.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, ease: "easeOut" }}
             >
               {/* Vogue-style pre-title */}
-              <motion.p
+              <m.p
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
                 className="vogue-subheading text-primary mb-8"
               >
                 The New Collection
-              </motion.p>
+              </m.p>
               
               {/* Dramatic display typography */}
-              <motion.h1
+              <m.h1
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -69,10 +69,10 @@ const HeroSection = () => {
                 Timeless
                 <br />
                 <span className="text-primary">Elegance</span>
-              </motion.h1>
+              </m.h1>
 
               {/* Editorial divider */}
-              <motion.div
+              <m.div
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
                 transition={{ delay: 0.7, duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -80,7 +80,7 @@ const HeroSection = () => {
               />
               
               {/* Vogue-style body copy */}
-              <motion.p
+              <m.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.9, duration: 0.6 }}
@@ -88,9 +88,9 @@ const HeroSection = () => {
               >
                 Discover our exquisite collection of handcrafted jewellery, 
                 where every piece tells a story of artistry and passion.
-              </motion.p>
+              </m.p>
               
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1.1, duration: 0.6 }}
@@ -114,36 +114,36 @@ const HeroSection = () => {
                     New Arrivals
                   </Button>
                 </Link>
-              </motion.div>
-            </motion.div>
+              </m.div>
+            </m.div>
           </div>
 
           {/* Right Editorial Info */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2, duration: 0.8 }}
             className="hidden lg:flex col-span-2 flex-col items-end justify-end text-right pb-4"
           >
-            <p className="vogue-subheading text-background/50 mb-2">Est. 2010</p>
+            <p className="vogue-subheading text-background/50 mb-2">Est. 2026</p>
             <p className="vogue-caption text-background/70">Accra, Ghana</p>
-          </motion.div>
+          </m.div>
         </div>
       </div>
 
       {/* Bottom scroll indicator */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.5, duration: 0.8 }}
         className="absolute bottom-8 left-1/2 -translate-x-1/2"
       >
-        <motion.div
+        <m.div
           animate={{ y: [0, 8, 0] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           className="w-px h-12 bg-gradient-to-b from-transparent via-background/50 to-background/80"
         />
-      </motion.div>
+      </m.div>
     </section>
   );
 };

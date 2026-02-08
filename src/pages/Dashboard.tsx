@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { m } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   Heart,
@@ -13,21 +13,63 @@ import {
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
-import { products } from "@/data/products";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useLogout, useMe, useUpdateMe } from "@/hooks/useAuth";
+import { useFavorites, useRemoveFavorite } from "@/hooks/useFavorites";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api";
+import { getProductCategory, getProductImages } from "@/lib/productAdapters";
+import { recentViewsApi } from "@/lib/recentViews";
+import type { ApiCategory, ApiCollection, ApiProduct } from "@/lib/types";
 
 type TabType = "favorites" | "recent" | "profile";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState<TabType>("favorites");
+  const { data: me, isLoading } = useMe();
+  const logout = useLogout();
+  const updateMe = useUpdateMe();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [profileForm, setProfileForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+  });
 
-  // Mock data for favorites and recent views
-  const [favorites, setFavorites] = useState(products.slice(0, 3));
-  const [recentViews] = useState(products.slice(2, 6));
+  const { data: categories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ["categories"],
+    queryFn: () => apiClient.get<ApiCategory[]>("/categories/"),
+  });
+  const { data: collections = [] } = useQuery<ApiCollection[]>({
+    queryKey: ["collections"],
+    queryFn: () => apiClient.get<ApiCollection[]>("/collections/"),
+  });
 
-  const removeFavorite = (id: string) => {
-    setFavorites(favorites.filter((p) => p.id !== id));
-  };
+  const { data: recentViews = [] } = useQuery<ApiProduct[]>({
+    queryKey: ["recent-views"],
+    queryFn: () => recentViewsApi.list(8),
+    enabled: Boolean(me?.user),
+  });
+  const { data: favorites = [] } = useFavorites(Boolean(me?.user));
+  const removeFavorite = useRemoveFavorite();
+  const clearRecentViews = useMutation({
+    mutationFn: recentViewsApi.clear,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recent-views"] });
+      toast({ title: "Recent views cleared" });
+    },
+    onError: () => {
+      toast({
+        title: "Clear failed",
+        description: "Unable to clear recent views.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const tabs = [
     { id: "favorites" as TabType, label: "Favorites", icon: Heart },
@@ -35,13 +77,37 @@ const Dashboard = () => {
     { id: "profile" as TabType, label: "Profile", icon: User },
   ];
 
+  useEffect(() => {
+    if (me?.user) {
+      setProfileForm({
+        first_name: me.user.first_name || "",
+        last_name: me.user.last_name || "",
+        email: me.user.email || "",
+        phone: me.profile?.phone || "",
+      });
+    }
+  }, [me]);
+
+  const buildCardData = (product: ApiProduct) => {
+    const images = getProductImages(product);
+    return {
+      id: String(product.id),
+      name: product.title,
+      price: Number(product.base_price) || 0,
+      image: images[0],
+      hoverImage: images[1] ?? images[0],
+      category: getProductCategory(product, categories, collections),
+      isNew: product.is_featured,
+    };
+  };
+
   return (
     <div className="min-h-screen">
       <Navbar />
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4">
           {/* Header */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
@@ -53,7 +119,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground">
               Welcome back! Manage your favorites and preferences.
             </p>
-          </motion.div>
+          </m.div>
 
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Sidebar Navigation */}
@@ -78,7 +144,10 @@ const Dashboard = () => {
                   <Settings size={18} />
                   <span className="font-medium text-sm">Settings</span>
                 </button>
-                <button className="hidden lg:flex items-center gap-3 px-4 py-3 rounded-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                <button
+                  onClick={() => logout.mutate()}
+                  className="hidden lg:flex items-center gap-3 px-4 py-3 rounded-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                >
                   <LogOut size={18} />
                   <span className="font-medium text-sm">Sign Out</span>
                 </button>
@@ -87,9 +156,33 @@ const Dashboard = () => {
 
             {/* Content Area */}
             <div className="flex-1">
+              {!isLoading && !me?.user && (
+                <m.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.4 }}
+                  className="bg-secondary border border-border rounded-sm p-8"
+                >
+                  <h2 className="font-serif text-2xl mb-2">Sign in required</h2>
+                  <p className="text-muted-foreground mb-6">
+                    Create an account or sign in to manage favorites and profile.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <Link to="/login">
+                      <Button className="bg-foreground text-background hover:bg-foreground/90">
+                        Sign in
+                      </Button>
+                    </Link>
+                    <Link to="/register">
+                      <Button variant="outline">Create account</Button>
+                    </Link>
+                  </div>
+                </m.div>
+              )}
+
               {/* Favorites Tab */}
-              {activeTab === "favorites" && (
-                <motion.div
+              {activeTab === "favorites" && me?.user && (
+                <m.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4 }}
@@ -102,18 +195,12 @@ const Dashboard = () => {
 
                   {favorites.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                      {favorites.map((product) => (
-                        <div key={product.id} className="relative">
+                      {favorites.map((favorite) => (
+                        <div key={favorite.id} className="relative">
                           <ProductCard
-                            id={product.id}
-                            name={product.name}
-                            price={product.price}
-                            image={product.images[0]}
-                            hoverImage={product.images[1]}
-                            category={product.category}
-                            isNew={product.isNew}
+                            {...buildCardData(favorite.product_detail)}
                             isFavorite={true}
-                            onFavoriteToggle={() => removeFavorite(product.id)}
+                            onFavoriteToggle={() => removeFavorite.mutate(favorite.id)}
                           />
                         </div>
                       ))}
@@ -134,19 +221,23 @@ const Dashboard = () => {
                       </Link>
                     </div>
                   )}
-                </motion.div>
+                </m.div>
               )}
 
               {/* Recent Views Tab */}
-              {activeTab === "recent" && (
-                <motion.div
+              {activeTab === "recent" && me?.user && (
+                <m.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4 }}
                 >
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="font-serif text-2xl">Recently Viewed</h2>
-                    <button className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                    <button
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                      onClick={() => clearRecentViews.mutate()}
+                      disabled={clearRecentViews.isPending}
+                    >
                       Clear History
                     </button>
                   </div>
@@ -156,13 +247,7 @@ const Dashboard = () => {
                       {recentViews.map((product) => (
                         <ProductCard
                           key={product.id}
-                          id={product.id}
-                          name={product.name}
-                          price={product.price}
-                          image={product.images[0]}
-                          hoverImage={product.images[1]}
-                          category={product.category}
-                          isNew={product.isNew}
+                          {...buildCardData(product)}
                         />
                       ))}
                     </div>
@@ -182,12 +267,12 @@ const Dashboard = () => {
                       </Link>
                     </div>
                   )}
-                </motion.div>
+                </m.div>
               )}
 
               {/* Profile Tab */}
-              {activeTab === "profile" && (
-                <motion.div
+              {activeTab === "profile" && me?.user && (
+                <m.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4 }}
@@ -197,13 +282,14 @@ const Dashboard = () => {
                   <div className="bg-card border border-border rounded-sm p-6 md:p-8">
                     <div className="flex items-center gap-6 mb-8 pb-8 border-b border-border">
                       <div className="w-20 h-20 rounded-full bg-gradient-gold flex items-center justify-center text-primary-foreground text-2xl font-serif">
-                        AG
+                        {(profileForm.first_name?.[0] || "G") +
+                          (profileForm.last_name?.[0] || "A")}
                       </div>
                       <div>
-                        <h3 className="font-serif text-xl">Ama Gyamfua</h3>
-                        <p className="text-muted-foreground">
-                          ama.gyamfua@email.com
-                        </p>
+                        <h3 className="font-serif text-xl">
+                          {profileForm.first_name || "Guest"} {profileForm.last_name}
+                        </h3>
+                        <p className="text-muted-foreground">{profileForm.email}</p>
                       </div>
                     </div>
 
@@ -213,20 +299,30 @@ const Dashboard = () => {
                           <label className="block text-sm font-medium mb-2">
                             First Name
                           </label>
-                          <input
+                          <Input
                             type="text"
-                            defaultValue="Ama"
-                            className="w-full px-4 py-3 bg-secondary border border-border rounded-sm focus:outline-none focus:border-primary transition-colors"
+                            value={profileForm.first_name}
+                            onChange={(event) =>
+                              setProfileForm((prev) => ({
+                                ...prev,
+                                first_name: event.target.value,
+                              }))
+                            }
                           />
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-2">
                             Last Name
                           </label>
-                          <input
+                          <Input
                             type="text"
-                            defaultValue="Gyamfua"
-                            className="w-full px-4 py-3 bg-secondary border border-border rounded-sm focus:outline-none focus:border-primary transition-colors"
+                            value={profileForm.last_name}
+                            onChange={(event) =>
+                              setProfileForm((prev) => ({
+                                ...prev,
+                                last_name: event.target.value,
+                              }))
+                            }
                           />
                         </div>
                       </div>
@@ -235,10 +331,15 @@ const Dashboard = () => {
                         <label className="block text-sm font-medium mb-2">
                           Email Address
                         </label>
-                        <input
+                        <Input
                           type="email"
-                          defaultValue="ama.gyamfua@email.com"
-                          className="w-full px-4 py-3 bg-secondary border border-border rounded-sm focus:outline-none focus:border-primary transition-colors"
+                          value={profileForm.email}
+                          onChange={(event) =>
+                            setProfileForm((prev) => ({
+                              ...prev,
+                              email: event.target.value,
+                            }))
+                          }
                         />
                       </div>
 
@@ -246,19 +347,39 @@ const Dashboard = () => {
                         <label className="block text-sm font-medium mb-2">
                           Phone Number
                         </label>
-                        <input
+                        <Input
                           type="tel"
-                          defaultValue="+233 24 123 4567"
-                          className="w-full px-4 py-3 bg-secondary border border-border rounded-sm focus:outline-none focus:border-primary transition-colors"
+                          value={profileForm.phone}
+                          onChange={(event) =>
+                            setProfileForm((prev) => ({
+                              ...prev,
+                              phone: event.target.value,
+                            }))
+                          }
                         />
                       </div>
 
-                      <Button className="bg-gradient-gold hover:opacity-90 text-primary-foreground">
+                      <Button
+                        className="bg-gradient-gold hover:opacity-90 text-primary-foreground"
+                        onClick={() =>
+                          updateMe.mutate({
+                            user: {
+                              first_name: profileForm.first_name,
+                              last_name: profileForm.last_name,
+                              email: profileForm.email,
+                            },
+                            profile: {
+                              phone: profileForm.phone,
+                            },
+                          })
+                        }
+                        disabled={updateMe.isPending}
+                      >
                         Save Changes
                       </Button>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               )}
             </div>
           </div>
