@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { SlidersHorizontal, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
@@ -139,7 +139,7 @@ const Catalog = () => {
       <main className="pt-20 pb-16">
         <div className="container mx-auto px-4 py-8">
           {/* Page Header - Swiss Style */}
-          <motion.div
+              <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -148,7 +148,7 @@ const Catalog = () => {
             <p className="swiss-subheading text-primary mb-2">Browse</p>
             <h1 className="swiss-heading text-foreground mb-4">Our Collections</h1>
             <div className="w-16 h-1 bg-foreground" />
-          </motion.div>
+              </m.div>
 
           <div className="flex gap-8">
             {/* Desktop Sidebar - Swiss Minimal */}
@@ -229,14 +229,14 @@ const Catalog = () => {
             <AnimatePresence>
               {isSidebarOpen && (
                 <>
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="fixed inset-0 bg-foreground/50 z-50 lg:hidden"
                     onClick={() => setIsSidebarOpen(false)}
                   />
-                  <motion.aside
+                  <m.aside
                     initial={{ x: "-100%" }}
                     animate={{ x: 0 }}
                     exit={{ x: "-100%" }}
@@ -315,7 +315,7 @@ const Catalog = () => {
                         ))}
                       </ul>
                     </div>
-                  </motion.aside>
+                  </m.aside>
                 </>
               )}
             </AnimatePresence>
@@ -338,7 +338,7 @@ const Catalog = () => {
                 </select>
               </div>
 
-              <motion.div layout className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              <m.div layout className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 <AnimatePresence mode="popLayout">
                   {products.map((product) => {
                     const images = getProductImages(product);
@@ -371,7 +371,7 @@ const Catalog = () => {
                     </div>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </m.div>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { X, RotateCcw, ZoomIn, ZoomOut, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -246,7 +246,7 @@ const ARTryOn = ({ modelUrl, productName, onClose, onLoaded }: ARTryOnProps) => 
 
   return (
     <AnimatePresence>
-      <motion.div
+      <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -358,7 +358,7 @@ const ARTryOn = ({ modelUrl, productName, onClose, onLoaded }: ARTryOnProps) => 
         <div className="hidden md:block absolute bottom-4 left-4 z-20">
           <p className="text-xs text-background/50">Press ESC to exit</p>
         </div>
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   );
 };

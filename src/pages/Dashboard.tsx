@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   Heart,
@@ -107,7 +107,7 @@ const Dashboard = () => {
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4">
           {/* Header */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
@@ -119,7 +119,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground">
               Welcome back! Manage your favorites and preferences.
             </p>
-          </motion.div>
+          </m.div>
 
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Sidebar Navigation */}
@@ -157,7 +157,7 @@ const Dashboard = () => {
             {/* Content Area */}
             <div className="flex-1">
               {!isLoading && !me?.user && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4 }}
@@ -177,12 +177,12 @@ const Dashboard = () => {
                       <Button variant="outline">Create account</Button>
                     </Link>
                   </div>
-                </motion.div>
+                </m.div>
               )}
 
               {/* Favorites Tab */}
               {activeTab === "favorites" && me?.user && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4 }}
@@ -221,12 +221,12 @@ const Dashboard = () => {
                       </Link>
                     </div>
                   )}
-                </motion.div>
+                </m.div>
               )}
 
               {/* Recent Views Tab */}
               {activeTab === "recent" && me?.user && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4 }}
@@ -267,12 +267,12 @@ const Dashboard = () => {
                       </Link>
                     </div>
                   )}
-                </motion.div>
+                </m.div>
               )}
 
               {/* Profile Tab */}
               {activeTab === "profile" && me?.user && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.4 }}
@@ -379,7 +379,7 @@ const Dashboard = () => {
                       </Button>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               )}
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Search, Heart, User, Menu, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -126,7 +126,7 @@ const Navbar = () => {
         {/* Search Bar */}
         <AnimatePresence>
           {isSearchOpen && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -141,14 +141,14 @@ const Navbar = () => {
                   autoFocus
                 />
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
 
         {/* Mobile Menu */}
         <AnimatePresence>
           {isMenuOpen && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -157,7 +157,7 @@ const Navbar = () => {
             >
               <ul className="pt-6 pb-4 space-y-1 border-t border-border mt-5">
                 {navLinks.map((link, index) => (
-                  <motion.li
+                  <m.li
                     key={link.path}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -174,9 +174,9 @@ const Navbar = () => {
                     >
                       {link.name}
                     </Link>
-                  </motion.li>
+                  </m.li>
                 ))}
-                <motion.li
+                <m.li
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: navLinks.length * 0.1 }}
@@ -197,9 +197,9 @@ const Navbar = () => {
                       Sign in
                     </Link>
                   )}
-                </motion.li>
+                </m.li>
               </ul>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </nav>

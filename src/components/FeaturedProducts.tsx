@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -55,7 +55,7 @@ const FeaturedProducts = () => {
     <section className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6 md:px-12">
         {/* Editorial Header */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -78,7 +78,7 @@ const FeaturedProducts = () => {
             View All Collection
             <ArrowRight size={14} className="transition-transform duration-300 group-hover:translate-x-1" />
           </Link>
-        </motion.div>
+        </m.div>
 
         {/* Vogue-style asymmetric grid */}
         {isLoading ? (
@@ -98,7 +98,7 @@ const FeaturedProducts = () => {
           <div className="grid grid-cols-12 gap-6 md:gap-8">
             {/* Large featured item */}
             {featuredProducts[0] && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -106,13 +106,13 @@ const FeaturedProducts = () => {
                 className="col-span-12 md:col-span-6"
               >
                 <ProductCard {...buildCardData(featuredProducts[0])} variant="large" />
-              </motion.div>
+              </m.div>
             )}
 
             {/* Stacked items on right */}
             <div className="col-span-12 md:col-span-6 grid grid-cols-2 gap-6 md:gap-8">
               {featuredProducts.slice(1, 3).map((product, index) => (
-                <motion.div
+                <m.div
                   key={product.id}
                   initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -121,12 +121,12 @@ const FeaturedProducts = () => {
                   className="col-span-1"
                 >
                   <ProductCard {...buildCardData(product)} />
-                </motion.div>
+                </m.div>
               ))}
 
               {/* Fourth item spans both columns */}
               {featuredProducts[3] && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
@@ -134,7 +134,7 @@ const FeaturedProducts = () => {
                   className="col-span-2"
                 >
                   <ProductCard {...buildCardData(featuredProducts[3])} variant="wide" />
-                </motion.div>
+                </m.div>
               )}
             </div>
           </div>

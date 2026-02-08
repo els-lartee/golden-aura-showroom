@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useMemo } from "react";
@@ -65,7 +65,7 @@ const CollectionBanner = () => {
     <section className="py-24 md:py-32 bg-secondary">
       <div className="container mx-auto px-6 md:px-12">
         {/* Editorial Header */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -79,12 +79,12 @@ const CollectionBanner = () => {
             Our Collections
           </h2>
           <div className="editorial-line mx-auto" />
-        </motion.div>
+        </m.div>
 
         {/* Editorial Grid */}
         <div className="grid grid-cols-12 gap-4 md:gap-6">
           {/* Large left banner */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -118,12 +118,12 @@ const CollectionBanner = () => {
                 </div>
               </div>
             </Link>
-          </motion.div>
+          </m.div>
 
           {/* Right stacked banners */}
           <div className="col-span-12 md:col-span-5 grid grid-rows-2 gap-4 md:gap-6">
             {categoryLinks.slice(1, 3).map((collection, index) => (
-              <motion.div
+              <m.div
                 key={collection.name}
                 initial={{ opacity: 0, y: 40 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -149,12 +149,12 @@ const CollectionBanner = () => {
                     </div>
                   </div>
                 </Link>
-              </motion.div>
+              </m.div>
             ))}
           </div>
 
           {/* Bottom wide banner */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -189,7 +189,7 @@ const CollectionBanner = () => {
                 </div>
               </div>
             </Link>
-          </motion.div>
+          </m.div>
         </div>
       </div>
     </section>

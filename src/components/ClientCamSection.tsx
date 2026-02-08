@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { clientImages } from "@/data/products";
 import { Instagram } from "lucide-react";
 
@@ -15,7 +15,7 @@ const ClientCamSection = () => {
     <section className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6 md:px-12">
         {/* Editorial Header */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -44,12 +44,12 @@ const ClientCamSection = () => {
             <Instagram size={16} strokeWidth={1.5} />
             Follow Us
           </a>
-        </motion.div>
+        </m.div>
 
         {/* Editorial Masonry-style Grid */}
         <div className="grid grid-cols-12 gap-4 md:gap-6">
           {/* First large image */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -57,10 +57,10 @@ const ClientCamSection = () => {
             className="col-span-6 md:col-span-5 row-span-2"
           >
             <ClientImage client={clientImages[0]} variant="large" />
-          </motion.div>
+          </m.div>
 
           {/* Second image */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -68,10 +68,10 @@ const ClientCamSection = () => {
             className="col-span-6 md:col-span-4"
           >
             <ClientImage client={clientImages[1]} />
-          </motion.div>
+          </m.div>
 
           {/* Third image */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -79,10 +79,10 @@ const ClientCamSection = () => {
             className="col-span-6 md:col-span-3"
           >
             <ClientImage client={clientImages[2]} />
-          </motion.div>
+          </m.div>
 
           {/* Fourth image */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -90,11 +90,11 @@ const ClientCamSection = () => {
             className="col-span-6 md:col-span-7"
           >
             <ClientImage client={clientImages[3]} variant="wide" />
-          </motion.div>
+          </m.div>
         </div>
 
         {/* Editorial Quote */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -108,7 +108,7 @@ const ClientCamSection = () => {
           <p className="vogue-subheading text-muted-foreground mt-6">
             — Golden Aura Philosophy
           </p>
-        </motion.div>
+        </m.div>
       </div>
     </section>
   );
