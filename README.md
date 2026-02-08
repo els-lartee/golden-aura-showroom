@@ -29,7 +29,7 @@ uv run python manage.py migrate
 uv run python manage.py runserver
 ```
 
-If Postgres is unavailable (e.g. Codespaces), prefix commands with `DJANGO_USE_SQLITE=true`.
+If Postgres is unavailable (e.g. for Codespaces), prefix commands with `DJANGO_USE_SQLITE=true`.
 
 ## Tests
 
