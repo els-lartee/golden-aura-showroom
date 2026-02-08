@@ -1,26 +1,43 @@
-# Welcome to your Lovable project
+# Golden Aura Showroom
 
-## Project info
+Jewelry e-commerce site with AR try-on. React + Vite frontend, Django backend.
 
-Golden Aura Showdown is a jewelry e-commerce website that allows users to try on items using AR before purchasing them to provide the best user experience possible.
+## Prerequisites
 
-## Running Project
+- Node.js
+- Python 3.12+ with [uv](https://docs.astral.sh/uv/)
 
-```bash
+## Frontend
+
+```sh
 npm install
-```
-
-```bash
 npm run dev
 ```
 
-## Environment
+Create a `.env` file in the project root:
 
-Create a `.env` file at the project root and set the backend API URL:
+```
+VITE_API_BASE_URL=http://localhost:8000/api
+```
 
-- `VITE_API_BASE_URL=http://localhost:8000/api`
+## Backend
 
-If using Codespaces, replace with your forwarded backend URL, e.g.
+```sh
+cd backend
+uv sync
+uv run python manage.py migrate
+uv run python manage.py runserver
+```
 
-- `VITE_API_BASE_URL=https://<codespace>-8000.app.github.dev/api`
+If Postgres is unavailable (e.g. Codespaces), prefix commands with `DJANGO_USE_SQLITE=true`.
+
+## Tests
+
+```sh
+# frontend
+npm run test
+
+# backend
+cd backend && uv run python manage.py test
+```
 ```

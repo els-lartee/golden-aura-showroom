@@ -1,33 +1,19 @@
-# Golden Aura Backend
-
 ## Setup
 
-- Create env: `uv venv`
-- Install deps: `uv sync`
+```sh
+uv sync
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
+uv run python manage.py runserver
+```
 
-## Run
+If Postgres is unavailable, prefix commands with `DJANGO_USE_SQLITE=true`.
 
-- `uv run python manage.py migrate`
-- `uv run python manage.py createsuperuser`
-- `uv run python manage.py runserver`
-
-### If Postgres connection is refused
-
-Codespaces typically doesn’t run Postgres by default. Use SQLite for local dev:
-
-- `DJANGO_USE_SQLITE=true uv run python manage.py migrate`
-- `DJANGO_USE_SQLITE=true uv run python manage.py runserver`
+For CSRF/secure cookie issues in development, also add `DJANGO_SECURE_COOKIES=false`.
 
 ## Tests
 
-- `uv run python manage.py test`
+```sh
+uv run python manage.py test
+```
 
-## Recommendations (Batch)
-
-- `uv run python manage.py rebuild_recommendations`
-
-### Schedule (dev)
-
-- `uv run python manage.py crontab add`
-- `uv run python manage.py crontab show`
-- `uv run python manage.py crontab remove`
