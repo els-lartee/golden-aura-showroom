@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import ARModal from "@/components/ARModal";
+import RecommendationsStrip from "@/components/RecommendationsStrip";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
 import { getProductCategory, getProductImages, getProductModelUrl } from "@/lib/productAdapters";
@@ -173,6 +174,8 @@ const Catalog = () => {
               </button>
             )}
               </m.div>
+
+          <RecommendationsStrip />
 
           <div className="flex gap-8">
             {/* Desktop Sidebar - Swiss Minimal */}
