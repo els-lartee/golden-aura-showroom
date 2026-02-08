@@ -1,5 +1,4 @@
 from io import BytesIO
-from pathlib import Path
 from uuid import uuid4
 
 from django.core.files.base import ContentFile
@@ -58,37 +57,29 @@ class ProductMediaSerializer(serializers.ModelSerializer):
         file.seek(0)
         image = Image.open(file)
         original_name = getattr(file, "name", "image")
-        base_name = slugify(Path(original_name).stem) or "image"
 
-        format_map = {
-            "JPEG": "jpg",
-            "PNG": "png",
-            "WEBP": "webp",
-            "GIF": "gif",
-        }
+        # Animated GIFs are kept as-is
         image_format = (image.format or "").upper()
-        extension = format_map.get(image_format) or Path(original_name).suffix.lstrip(".") or "jpg"
-
-        identifier = product_id or "asset"
-        safe_name = f"product-{identifier}-{base_name}-{uuid4().hex}.{extension.lower()}"
-
         if image_format == "GIF" and getattr(image, "is_animated", False):
+            safe_name = f"{uuid4().hex}.gif"
             file.seek(0)
             return ContentFile(file.read(), name=safe_name)
 
+        # Convert all non-WebP images (PNG, JPEG, etc.) to WebP for smaller sizes
         if image.mode not in ("RGB", "RGBA"):
-            image = image.convert("RGB")
+            image = image.convert("RGBA" if image_format == "PNG" else "RGB")
 
-        save_kwargs: dict[str, object] = {}
-        if image_format == "JPEG":
-            save_kwargs = {"quality": 85, "optimize": True}
-        elif image_format == "PNG":
-            save_kwargs = {"optimize": True}
-        elif image_format == "WEBP":
-            save_kwargs = {"quality": 82, "method": 6}
+        # For images with alpha channel, keep RGBA; otherwise convert to RGB
+        if image.mode == "RGBA":
+            # Check if image actually uses transparency
+            extrema = image.getextrema()
+            if extrema[3][0] == 255:  # alpha channel is fully opaque
+                image = image.convert("RGB")
+
+        safe_name = f"{uuid4().hex}.webp"
 
         buffer = BytesIO()
-        image.save(buffer, format=image_format or "JPEG", **save_kwargs)
+        image.save(buffer, format="WEBP", quality=82, method=6)
         buffer.seek(0)
         return ContentFile(buffer.read(), name=safe_name)
 

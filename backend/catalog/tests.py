@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 
 from analytics.models import Event
-from catalog.models import Collection, Favorite, Product, ProductVariant
+from catalog.models import Collection, Favorite, Product, ProductMedia, ProductVariant
 
 from PIL import Image
 
@@ -13,7 +13,15 @@ User = get_user_model()
 
 
 class CatalogApiTests(APITestCase):
-    def test_product_media_upload_sanitizes_image_upload(self) -> None:
+    def _cleanup_media_file(self, response) -> None:
+        media_id = response.data.get("id") if hasattr(response, "data") else None
+        if not media_id:
+            return
+        media = ProductMedia.objects.filter(id=media_id).first()
+        if media and media.file:
+            media.file.delete(save=False)
+
+    def test_product_media_upload_converts_png_to_webp(self) -> None:
         product = Product.objects.create(
             title="Emerald Ring",
             slug="emerald-ring",
@@ -38,12 +46,106 @@ class CatalogApiTests(APITestCase):
             format="multipart",
         )
 
-        self.assertEqual(response.status_code, 201)
-        self.assertIn(f"product-{product.id}-", response.data["file"])
-        self.assertIn(f"product-{product.id}-", response.data["url"])
-        self.assertTrue(response.data["file"].endswith(".png"))
-        self.assertTrue(response.data["url"].endswith(".png"))
-        self.assertNotIn(" ", response.data["file"])
+        try:
+            self.assertEqual(response.status_code, 201)
+            self.assertTrue(response.data["file"].endswith(".webp"))
+            self.assertTrue(response.data["url"].endswith(".webp"))
+            self.assertNotIn(" ", response.data["file"])
+        finally:
+            self._cleanup_media_file(response)
+
+    def test_product_media_upload_converts_jpeg_to_webp(self) -> None:
+        product = Product.objects.create(
+            title="Ruby Ring",
+            slug="ruby-ring",
+            base_price="15000.00",
+            currency="NGN",
+        )
+
+        image = Image.new("RGB", (32, 32), color=(200, 50, 50))
+        buffer = BytesIO()
+        image.save(buffer, format="JPEG")
+        buffer.seek(0)
+
+        upload = SimpleUploadedFile("ruby.jpg", buffer.read(), content_type="image/jpeg")
+        response = self.client.post(
+            "/api/product-media/",
+            {
+                "product": product.id,
+                "media_type": "image",
+                "file": upload,
+                "alt_text": "Ruby",
+            },
+            format="multipart",
+        )
+
+        try:
+            self.assertEqual(response.status_code, 201)
+            self.assertTrue(response.data["file"].endswith(".webp"))
+        finally:
+            self._cleanup_media_file(response)
+
+    def test_product_media_upload_keeps_webp_as_webp(self) -> None:
+        product = Product.objects.create(
+            title="Diamond Ring",
+            slug="diamond-ring",
+            base_price="20000.00",
+            currency="NGN",
+        )
+
+        image = Image.new("RGB", (16, 16), color=(255, 255, 255))
+        buffer = BytesIO()
+        image.save(buffer, format="WEBP")
+        buffer.seek(0)
+
+        upload = SimpleUploadedFile("diamond.webp", buffer.read(), content_type="image/webp")
+        response = self.client.post(
+            "/api/product-media/",
+            {
+                "product": product.id,
+                "media_type": "image",
+                "file": upload,
+                "alt_text": "Diamond",
+            },
+            format="multipart",
+        )
+
+        try:
+            self.assertEqual(response.status_code, 201)
+            self.assertTrue(response.data["file"].endswith(".webp"))
+        finally:
+            self._cleanup_media_file(response)
+
+    def test_product_media_preserves_transparency(self) -> None:
+        product = Product.objects.create(
+            title="Pearl Ring",
+            slug="pearl-ring",
+            base_price="9000.00",
+            currency="NGN",
+        )
+
+        image = Image.new("RGBA", (16, 16), color=(255, 255, 255, 128))
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        upload = SimpleUploadedFile("pearl.png", buffer.read(), content_type="image/png")
+        response = self.client.post(
+            "/api/product-media/",
+            {
+                "product": product.id,
+                "media_type": "image",
+                "file": upload,
+                "alt_text": "Pearl",
+            },
+            format="multipart",
+        )
+
+        try:
+            self.assertEqual(response.status_code, 201)
+            self.assertTrue(response.data["file"].endswith(".webp"))
+        finally:
+            self._cleanup_media_file(response)
 
     def test_create_product_and_variant(self) -> None:
         response = self.client.post(

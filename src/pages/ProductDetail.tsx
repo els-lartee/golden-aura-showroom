@@ -17,6 +17,13 @@ import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import ARModal from "@/components/ARModal";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { apiClient } from "@/lib/api";
 import { getProductCategory, getProductImages, getProductModelUrl } from "@/lib/productAdapters";
 import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
@@ -61,9 +68,9 @@ const ProductDetail = () => {
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
   const [activeModelUrl, setActiveModelUrl] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
   const { data: cart } = useCart();
   const addToCart = useAddToCart();
-  const canAddToCart = Boolean(cart && product?.variants?.length);
   const { toast } = useToast();
   const { data: favorites = [] } = useFavorites(Boolean(me?.user));
   const toggleFavorite = useToggleFavorite();
@@ -78,6 +85,27 @@ const ProductDetail = () => {
     const lookup = new Map(tags.map((tag) => [tag.id, tag.name]));
     return product.tags.map((tagId) => lookup.get(tagId)).filter(Boolean) as string[];
   }, [product?.tags, tags]);
+
+  const defaultVariant = useMemo(() => {
+    if (!product?.variants?.length) return null;
+    return product.variants.find((variant) => variant.is_active) ?? product.variants[0];
+  }, [product?.variants]);
+
+  const selectedVariant = useMemo(() => {
+    if (!product?.variants?.length) return null;
+    if (!selectedVariantId) return defaultVariant;
+    return (
+      product.variants.find((variant) => String(variant.id) === selectedVariantId) ??
+      defaultVariant
+    );
+  }, [defaultVariant, product?.variants, selectedVariantId]);
+
+  const canAddToCart = Boolean(cart && selectedVariant && selectedVariant.is_active);
+
+  useEffect(() => {
+    if (!defaultVariant) return;
+    setSelectedVariantId(String(defaultVariant.id));
+  }, [defaultVariant, product?.id]);
 
   const viewStartRef = useRef<number | null>(null);
 
@@ -361,8 +389,30 @@ const ProductDetail = () => {
               </h1>
 
               <p className="text-2xl font-bold text-foreground mb-6 tracking-tight">
-                GH₵ {Number(product.base_price).toLocaleString()}
+                GH₵ {Number(selectedVariant?.price ?? product.base_price).toLocaleString()}
               </p>
+
+              {product.variants?.length > 1 && (
+                <div className="mb-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground mb-2">
+                    Choose variant
+                  </p>
+                  <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
+                    <SelectTrigger className="h-12 border-2 border-foreground bg-secondary text-sm font-semibold">
+                      <SelectValue placeholder="Select a variant" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(product.variants || [])
+                        .filter((variant) => variant.is_active)
+                        .map((variant) => (
+                          <SelectItem key={variant.id} value={String(variant.id)}>
+                            {variant.name} · GH₵ {Number(variant.price).toLocaleString()}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="swiss-grid-line mb-6" />
 
@@ -396,11 +446,11 @@ const ProductDetail = () => {
                   size="lg"
                   className="flex-1 bg-foreground hover:bg-foreground/90 text-background py-6 font-semibold tracking-wide"
                   onClick={() => {
-                    if (!cart || !product.variants?.length) return;
+                    if (!cart || !selectedVariant) return;
                     addToCart.mutate(
                       {
                         cart: cart.id,
-                        product_variant: product.variants[0].id,
+                        product_variant: selectedVariant.id,
                         quantity: 1,
                       },
                       {
@@ -450,11 +500,11 @@ const ProductDetail = () => {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">SKU</p>
-                    <p className="font-semibold">{product.variants?.[0]?.sku || "—"}</p>
+                    <p className="font-semibold">{selectedVariant?.sku || "—"}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">Variant</p>
-                    <p className="font-semibold">{product.variants?.[0]?.name || "Standard"}</p>
+                    <p className="font-semibold">{selectedVariant?.name || "Standard"}</p>
                   </div>
                 </div>
               </div>

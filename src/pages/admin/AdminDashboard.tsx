@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { adminApi } from "@/lib/admin";
 import type { ApiCategory, ApiProduct, ApiProductVariant, ApiTag } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+
+import DashboardOverview from "./DashboardOverview";
+import InventoryTab from "./InventoryTab";
+import ProductsTab from "./ProductsTab";
+import TagsTab from "./TagsTab";
+import CategoriesTab from "./CategoriesTab";
+import PromotionsTab from "./PromotionsTab";
+import OrdersTab from "./OrdersTab";
+import UsersTab from "./UsersTab";
 
 const AdminDashboard = () => {
   const queryClient = useQueryClient();
@@ -476,824 +481,90 @@ const AdminDashboard = () => {
             ))}
           </div>
 
-          {activeTab === "overview" && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-secondary border border-border p-6 rounded-sm">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Orders</p>
-                <p className="text-2xl font-semibold">{metrics?.total_orders ?? 0}</p>
-              </div>
-              <div className="bg-secondary border border-border p-6 rounded-sm">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Revenue</p>
-                <p className="text-2xl font-semibold">{metrics?.total_revenue ?? 0}</p>
-              </div>
-              <div className="bg-secondary border border-border p-6 rounded-sm">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Customers</p>
-                <p className="text-2xl font-semibold">{metrics?.total_customers ?? 0}</p>
-              </div>
-              <div className="bg-secondary border border-border p-6 rounded-sm">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Products</p>
-                <p className="text-2xl font-semibold">{metrics?.total_products ?? 0}</p>
-              </div>
-              <div className="bg-secondary border border-border p-6 rounded-sm">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Low inventory</p>
-                <p className="text-2xl font-semibold">{metrics?.low_inventory_variants ?? 0}</p>
-              </div>
-            </div>
-          )}
+          {activeTab === "overview" && <DashboardOverview metrics={metrics} />}
 
           {activeTab === "inventory" && (
-            <div className="space-y-8">
-              <div className="bg-secondary border border-border rounded-sm p-6">
-                <h2 className="font-serif text-xl mb-4">Low inventory</h2>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Variant</TableHead>
-                      <TableHead>Stock</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {inventory.map((variant: any) => (
-                      <TableRow key={variant.id}>
-                        <TableCell>{variant.name}</TableCell>
-                        <TableCell>{variant.stock_quantity}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="bg-secondary border border-border rounded-sm p-6">
-                <h2 className="font-serif text-xl mb-4">Variants</h2>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                      Product
-                    </label>
-                    <select
-                      value={newVariant.product}
-                      onChange={(event) => setNewVariant((prev) => ({ ...prev, product: event.target.value }))}
-                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="">Select product</option>
-                      {products.map((product) => (
-                        <option key={product.id} value={product.id}>
-                          {product.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                      Price
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="Variant price"
-                      value={newVariant.price}
-                      onChange={(event) => setNewVariant((prev) => ({ ...prev, price: event.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                      Variant name
-                    </label>
-                    <Input
-                      placeholder="Variant name"
-                      value={newVariant.name}
-                      onChange={(event) => setNewVariant((prev) => ({ ...prev, name: event.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                      Stock keeping unit
-                    </label>
-                    <Input
-                      placeholder="SKU"
-                      value={newVariant.sku}
-                      onChange={(event) => setNewVariant((prev) => ({ ...prev, sku: event.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                      Stock quantity
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="Stock quantity"
-                      value={newVariant.stock_quantity}
-                      onChange={(event) =>
-                        setNewVariant((prev) => ({ ...prev, stock_quantity: event.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-                <Button className="mt-4" onClick={handleCreateVariant}>
-                  Add variant
-                </Button>
-
-                <Table className="mt-6">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Variant</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {variants.map((variant) => {
-                      const product = products.find((item) => item.id === variant.product);
-                      return (
-                        <TableRow key={variant.id}>
-                          <TableCell>{product?.title ?? variant.product}</TableCell>
-                          <TableCell>{variant.name}</TableCell>
-                          <TableCell>{variant.sku}</TableCell>
-                          <TableCell>{variant.price}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="1"
-                              value={
-                                variantStockEdits[variant.id] ?? String(variant.stock_quantity)
-                              }
-                              onChange={(event) =>
-                                setVariantStockEdits((prev) => ({
-                                  ...prev,
-                                  [variant.id]: event.target.value,
-                                }))
-                              }
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleSaveVariantStock(variant.id)}
-                            >
-                              Save
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+            <InventoryTab
+              inventory={inventory}
+              variants={variants}
+              products={products}
+              newVariant={newVariant}
+              setNewVariant={setNewVariant}
+              variantStockEdits={variantStockEdits}
+              setVariantStockEdits={setVariantStockEdits}
+              onCreateVariant={handleCreateVariant}
+              onSaveVariantStock={handleSaveVariantStock}
+            />
           )}
 
           {activeTab === "products" && (
-            <div className="space-y-8">
-              <div className="bg-secondary border border-border rounded-sm p-6">
-                <h2 className="font-serif text-xl mb-4">Add product</h2>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <Input
-                    placeholder="Title"
-                    value={newProduct.title}
-                    onChange={(event) =>
-                      setNewProduct((prev) => ({ ...prev, title: event.target.value }))
-                    }
-                  />
-                  <Input
-                    placeholder="Slug"
-                    value={newProduct.slug}
-                    onChange={(event) =>
-                      setNewProduct((prev) => ({ ...prev, slug: event.target.value }))
-                    }
-                  />
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="Base price"
-                    value={newProduct.base_price}
-                    onChange={(event) =>
-                      setNewProduct((prev) => ({ ...prev, base_price: event.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="mt-4 grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                      Category
-                    </label>
-                    <select
-                      value={newProduct.category}
-                      onChange={(event) =>
-                        setNewProduct((prev) => ({ ...prev, category: event.target.value }))
-                      }
-                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="">No category</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                      Tags
-                    </label>
-                    <select
-                      value={selectedTagInput}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        if (!value) return;
-                        const tagId = Number(value);
-                        setNewProduct((prev) =>
-                          prev.tags.includes(tagId)
-                            ? prev
-                            : { ...prev, tags: [...prev.tags, tagId] }
-                        );
-                        setSelectedTagInput("");
-                      }}
-                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="">Select a tag</option>
-                      {tags.map((tag) => (
-                        <option key={tag.id} value={tag.id}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </select>
-                    {newProduct.tags.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {newProduct.tags.map((tagId) => {
-                          const tag = tags.find((item) => item.id === tagId);
-                          if (!tag) return null;
-                          return (
-                            <button
-                              key={tag.id}
-                              type="button"
-                              className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs"
-                              onClick={() =>
-                                setNewProduct((prev) => ({
-                                  ...prev,
-                                  tags: prev.tags.filter((id) => id !== tag.id),
-                                }))
-                              }
-                            >
-                              {tag.name}
-                              <span className="text-muted-foreground">×</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                      Product images
-                    </label>
-                    <Input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={(event) => {
-                        const files = event.target.files ? Array.from(event.target.files) : [];
-                        if (files.length === 0) return;
-                        setNewProductImages((prev) => [...prev, ...files]);
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                    {imagePreviews.length > 0 && (
-                      <div className="mt-4">
-                        <p className="text-xs text-muted-foreground mb-3">
-                          {imagePreviews.length} image(s) selected
-                        </p>
-                        <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
-                          {imagePreviews.map((preview, index) => (
-                            <button
-                              key={preview.url}
-                              type="button"
-                              onClick={() => {
-                                setPreviewIndex(index);
-                                setIsPreviewOpen(true);
-                              }}
-                              className="group relative aspect-square overflow-hidden rounded-md border border-border"
-                            >
-                              <img
-                                src={preview.url}
-                                alt={preview.file.name}
-                                className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                              />
-                              <span className="sr-only">Preview {preview.file.name}</span>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setNewProductImages((prev) => prev.filter((_, i) => i !== index));
-                                  setPreviewIndex((current) =>
-                                    current > index
-                                      ? current - 1
-                                      : Math.min(current, imagePreviews.length - 2)
-                                  );
-                                }}
-                                className="absolute right-2 top-2 rounded-full bg-background/90 p-1 text-foreground shadow-sm opacity-0 transition-opacity group-hover:opacity-100"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                      3D model (.glb)
-                    </label>
-                    <Input
-                      type="file"
-                      accept=".glb"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0] ?? null;
-                        setNewProductModel(file);
-                      }}
-                    />
-                    {newProductModel && (
-                      <p className="mt-2 text-xs text-muted-foreground">{newProductModel.name}</p>
-                    )}
-                  </div>
-                </div>
-
-                <Button className="mt-4" onClick={handleCreateProduct} disabled={isCreatingProduct}>
-                  Create product
-                </Button>
-              </div>
-
-              <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-                <DialogContent className="max-w-3xl p-0 bg-background">
-                  {imagePreviews[previewIndex] && (
-                    <div className="relative">
-                      <img
-                        src={imagePreviews[previewIndex].url}
-                        alt={imagePreviews[previewIndex].file.name}
-                        className="max-h-[70vh] w-full object-contain bg-black"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-between px-4">
-                        <Button
-                          variant="ghost"
-                          className="h-10 w-10 rounded-full bg-background/80"
-                          onClick={() =>
-                            setPreviewIndex((prev) =>
-                              prev === 0 ? imagePreviews.length - 1 : prev - 1
-                            )
-                          }
-                        >
-                          <ChevronLeft className="h-5 w-5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="h-10 w-10 rounded-full bg-background/80"
-                          onClick={() =>
-                            setPreviewIndex((prev) =>
-                              prev === imagePreviews.length - 1 ? 0 : prev + 1
-                            )
-                          }
-                        >
-                          <ChevronRight className="h-5 w-5" />
-                        </Button>
-                      </div>
-                      <Button
-                        variant="destructive"
-                        className="absolute left-4 top-4 h-10 w-10 rounded-full p-0"
-                        onClick={() => {
-                          setNewProductImages((prev) => prev.filter((_, i) => i !== previewIndex));
-                          setPreviewIndex((prev) =>
-                            prev >= imagePreviews.length - 1 ? Math.max(0, prev - 1) : prev
-                          );
-                          if (imagePreviews.length <= 1) {
-                            setIsPreviewOpen(false);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
-                      <div className="absolute bottom-4 left-4 rounded-md bg-background/80 px-3 py-1 text-xs">
-                        {previewIndex + 1} / {imagePreviews.length}
-                      </div>
-                    </div>
-                  )}
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent className="max-w-2xl">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Edit product</h3>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <Input
-                        placeholder="Title"
-                        value={editForm.title}
-                        onChange={(event) =>
-                          setEditForm((prev) => ({ ...prev, title: event.target.value }))
-                        }
-                      />
-                      <Input
-                        placeholder="Slug"
-                        value={editForm.slug}
-                        onChange={(event) =>
-                          setEditForm((prev) => ({ ...prev, slug: event.target.value }))
-                        }
-                      />
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Base price"
-                        value={editForm.base_price}
-                        onChange={(event) =>
-                          setEditForm((prev) => ({ ...prev, base_price: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                          Category
-                        </label>
-                        <select
-                          value={editForm.category}
-                          onChange={(event) =>
-                            setEditForm((prev) => ({ ...prev, category: event.target.value }))
-                          }
-                          className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
-                        >
-                          <option value="">No category</option>
-                          {categories.map((category) => (
-                            <option key={category.id} value={category.id}>
-                              {category.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide mb-2">
-                          Tags
-                        </label>
-                        <select
-                          value=""
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            if (!value) return;
-                            const tagId = Number(value);
-                            setEditForm((prev) =>
-                              prev.tags.includes(tagId)
-                                ? prev
-                                : { ...prev, tags: [...prev.tags, tagId] }
-                            );
-                          }}
-                          className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
-                        >
-                          <option value="">Select a tag</option>
-                          {tags.map((tag) => (
-                            <option key={tag.id} value={tag.id}>
-                              {tag.name}
-                            </option>
-                          ))}
-                        </select>
-                        {editForm.tags.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {editForm.tags.map((tagId) => {
-                              const tag = tags.find((item) => item.id === tagId);
-                              if (!tag) return null;
-                              return (
-                                <button
-                                  key={tag.id}
-                                  type="button"
-                                  className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs"
-                                  onClick={() =>
-                                    setEditForm((prev) => ({
-                                      ...prev,
-                                      tags: prev.tags.filter((id) => id !== tag.id),
-                                    }))
-                                  }
-                                >
-                                  {tag.name}
-                                  <span className="text-muted-foreground">×</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsEditOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSaveEdit}>Save changes</Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <div className="bg-secondary border border-border rounded-sm p-6">
-                <h2 className="font-serif text-xl mb-4">Products</h2>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {products.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>{product.title}</TableCell>
-                        <TableCell>{product.status}</TableCell>
-                        <TableCell>{product.base_price}</TableCell>
-                        <TableCell>{product.variants?.[0]?.stock_quantity ?? "—"}</TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button size="sm" variant="outline" onClick={() => handleOpenEdit(product)}>
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteProduct(product.id)}
-                          >
-                            Delete
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-            </div>
+            <ProductsTab
+              products={products}
+              categories={categories}
+              tags={tags}
+              newProduct={newProduct}
+              setNewProduct={setNewProduct}
+              newProductImages={newProductImages}
+              setNewProductImages={setNewProductImages}
+              newProductModel={newProductModel}
+              setNewProductModel={setNewProductModel}
+              isPreviewOpen={isPreviewOpen}
+              setIsPreviewOpen={setIsPreviewOpen}
+              previewIndex={previewIndex}
+              setPreviewIndex={setPreviewIndex}
+              selectedTagInput={selectedTagInput}
+              setSelectedTagInput={setSelectedTagInput}
+              isCreatingProduct={isCreatingProduct}
+              isEditOpen={isEditOpen}
+              setIsEditOpen={setIsEditOpen}
+              editForm={editForm}
+              setEditForm={setEditForm}
+              onCreateProduct={handleCreateProduct}
+              onOpenEdit={handleOpenEdit}
+              onSaveEdit={handleSaveEdit}
+              onDeleteProduct={handleDeleteProduct}
+            />
           )}
 
           {activeTab === "tags" && (
-            <div className="bg-secondary border border-border rounded-sm p-6">
-              <h2 className="font-serif text-xl mb-4">Tags</h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                <Input
-                  placeholder="Tag name"
-                  value={newTag.name}
-                  onChange={(event) => setNewTag((prev) => ({ ...prev, name: event.target.value }))}
-                />
-                <Input
-                  placeholder="Slug"
-                  value={newTag.slug}
-                  onChange={(event) => setNewTag((prev) => ({ ...prev, slug: event.target.value }))}
-                />
-              </div>
-              <Button className="mt-4" onClick={handleCreateTag}>
-                Add tag
-              </Button>
-              <Table className="mt-6">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tags.map((tag) => (
-                    <TableRow key={tag.id}>
-                      <TableCell>{tag.name}</TableCell>
-                      <TableCell>{tag.slug}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteTag(tag.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <TagsTab
+              tags={tags}
+              newTag={newTag}
+              setNewTag={setNewTag}
+              onCreateTag={handleCreateTag}
+              onDeleteTag={handleDeleteTag}
+            />
           )}
 
           {activeTab === "categories" && (
-            <div className="bg-secondary border border-border rounded-sm p-6">
-              <h2 className="font-serif text-xl mb-4">Categories</h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                <Input
-                  placeholder="Category name"
-                  value={newCategory.name}
-                  onChange={(event) =>
-                    setNewCategory((prev) => ({ ...prev, name: event.target.value }))
-                  }
-                />
-                <Input
-                  placeholder="Slug"
-                  value={newCategory.slug}
-                  onChange={(event) =>
-                    setNewCategory((prev) => ({ ...prev, slug: event.target.value }))
-                  }
-                />
-              </div>
-              <Button className="mt-4" onClick={handleCreateCategory}>
-                Add category
-              </Button>
-              <Table className="mt-6">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {categories.map((category) => (
-                    <TableRow key={category.id}>
-                      <TableCell>{category.name}</TableCell>
-                      <TableCell>{category.slug}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteCategory(category.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <CategoriesTab
+              categories={categories}
+              newCategory={newCategory}
+              setNewCategory={setNewCategory}
+              onCreateCategory={handleCreateCategory}
+              onDeleteCategory={handleDeleteCategory}
+            />
           )}
 
           {activeTab === "promotions" && (
-            <div className="grid lg:grid-cols-2 gap-6">
-              <div className="bg-secondary border border-border rounded-sm p-6">
-                <h2 className="font-serif text-xl mb-4">Coupons</h2>
-                <div className="space-y-3">
-                  <Input
-                    placeholder="Code"
-                    value={newCoupon.code}
-                    onChange={(event) =>
-                      setNewCoupon((prev) => ({ ...prev, code: event.target.value }))
-                    }
-                  />
-                  <Input
-                    placeholder="Value"
-                    value={newCoupon.value}
-                    onChange={(event) =>
-                      setNewCoupon((prev) => ({ ...prev, value: event.target.value }))
-                    }
-                  />
-                  <Button onClick={handleCreateCoupon}>
-                    Create coupon
-                  </Button>
-                </div>
-                <Table className="mt-6">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Value</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {coupons.map((coupon) => (
-                      <TableRow key={coupon.id}>
-                        <TableCell>{coupon.code}</TableCell>
-                        <TableCell>{coupon.value}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="bg-secondary border border-border rounded-sm p-6">
-                <h2 className="font-serif text-xl mb-4">Promotion rules</h2>
-                <div className="space-y-3">
-                  <Input
-                    placeholder="Name"
-                    value={newRule.name}
-                    onChange={(event) =>
-                      setNewRule((prev) => ({ ...prev, name: event.target.value }))
-                    }
-                  />
-                  <Input
-                    placeholder="Min cart value"
-                    value={newRule.min_cart_value}
-                    onChange={(event) =>
-                      setNewRule((prev) => ({ ...prev, min_cart_value: event.target.value }))
-                    }
-                  />
-                  <Input
-                    placeholder="Value"
-                    value={newRule.value}
-                    onChange={(event) =>
-                      setNewRule((prev) => ({ ...prev, value: event.target.value }))
-                    }
-                  />
-                  <Button onClick={handleCreateRule}>
-                    Create rule
-                  </Button>
-                </div>
-                <Table className="mt-6">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Value</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {promotionRules.map((rule) => (
-                      <TableRow key={rule.id}>
-                        <TableCell>{rule.name}</TableCell>
-                        <TableCell>{rule.value}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+            <PromotionsTab
+              coupons={coupons}
+              promotionRules={promotionRules}
+              newCoupon={newCoupon}
+              setNewCoupon={setNewCoupon}
+              newRule={newRule}
+              setNewRule={setNewRule}
+              onCreateCoupon={handleCreateCoupon}
+              onCreateRule={handleCreateRule}
+            />
           )}
 
           {activeTab === "orders" && (
-            <div className="bg-secondary border border-border rounded-sm p-6">
-              <h2 className="font-serif text-xl mb-4">Orders</h2>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell>{order.id}</TableCell>
-                      <TableCell>{order.status}</TableCell>
-                      <TableCell>{order.total}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRefundOrder(order.id)}
-                        >
-                          Refund
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <OrdersTab orders={orders} onRefundOrder={handleRefundOrder} />
           )}
 
           {activeTab === "users" && (
-            <div className="bg-secondary border border-border rounded-sm p-6">
-              <h2 className="font-serif text-xl mb-4">Users</h2>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Active</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.username}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleToggleUser(user.id, user.is_active)}
-                        >
-                          {user.is_active ? "Deactivate" : "Activate"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <UsersTab users={users} onToggleUser={handleToggleUser} />
           )}
         </div>
       </main>
