@@ -62,7 +62,7 @@ const Login = () => {
       if (meQuery.data.profile?.role === "admin") {
         navigate("/admin", { replace: true });
       } else {
-        navigate("/dashboard", { replace: true });
+        navigate("/catalog", { replace: true });
       }
       return;
     }
@@ -75,7 +75,7 @@ const Login = () => {
     if (meQuery.data.profile?.role === "admin") {
       navigate("/admin", { replace: true });
     } else {
-      navigate("/dashboard", { replace: true });
+      navigate("/catalog", { replace: true });
     }
   }, [location.state, meQuery.data, navigate, pendingRedirect]);
 
