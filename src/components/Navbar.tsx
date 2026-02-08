@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, m } from "framer-motion";
 import { Search, Heart, User, Menu, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -19,7 +19,18 @@ import { promotionsApi } from "@/lib/promotions";
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+    navigate(`/catalog?query=${encodeURIComponent(trimmed)}`);
+    setSearchQuery("");
+    setIsSearchOpen(false);
+  };
   const { data: me } = useMe();
   const logout = useLogout();
   const isAuthenticated = Boolean(me?.user);
@@ -133,14 +144,16 @@ const Navbar = () => {
               transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               className="overflow-hidden"
             >
-              <div className="pt-5">
+              <form onSubmit={handleSearch} className="pt-5">
                 <input
                   type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search collections..."
                   className="w-full px-0 py-4 bg-transparent border-b border-foreground/20 focus:border-primary focus:outline-none transition-colors duration-300 font-serif text-lg italic placeholder:text-muted-foreground/50"
                   autoFocus
                 />
-              </div>
+              </form>
             </m.div>
           )}
         </AnimatePresence>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AnimatePresence, m } from "framer-motion";
-import { SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -16,6 +17,8 @@ import { useMe } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 const Catalog = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get("query") || "";
   const [selectedCollection, setSelectedCollection] = useState("All");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedTag, setSelectedTag] = useState("All");
@@ -49,14 +52,22 @@ const Catalog = () => {
     return "-is_featured";
   }, [selectedSort]);
 
+  const clearSearch = () => {
+    setSearchParams((prev) => {
+      prev.delete("query");
+      return prev;
+    });
+  };
+
   const { data: products = [], isLoading } = useQuery<ApiProduct[]>({
-    queryKey: ["products", selectedCollection, selectedCategory, selectedTag, sortParam],
+    queryKey: ["products", selectedCollection, selectedCategory, selectedTag, sortParam, searchQuery],
     queryFn: () =>
       apiClient.get<ApiProduct[]>("/products/", {
         collection: selectedCollection === "All" ? undefined : selectedCollection,
         category: selectedCategory === "All" ? undefined : selectedCategory,
         tag: selectedTag === "All" ? undefined : selectedTag,
         sort: sortParam,
+        query: searchQuery || undefined,
       }),
   });
 
@@ -145,9 +156,22 @@ const Catalog = () => {
             transition={{ duration: 0.5 }}
             className="mb-12"
           >
-            <p className="swiss-subheading text-primary mb-2">Browse</p>
-            <h1 className="swiss-heading text-foreground mb-4">Our Collections</h1>
+            <p className="swiss-subheading text-primary mb-2">
+              {searchQuery ? "Search Results" : "Browse"}
+            </p>
+            <h1 className="swiss-heading text-foreground mb-4">
+              {searchQuery ? `"${searchQuery}"` : "Our Collections"}
+            </h1>
             <div className="w-16 h-1 bg-foreground" />
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="mt-4 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X size={14} />
+                Clear search
+              </button>
+            )}
               </m.div>
 
           <div className="flex gap-8">
