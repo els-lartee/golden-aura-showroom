@@ -119,10 +119,12 @@ const ProductDetail = () => {
         .map((rec) => rec.product)
         .filter(Boolean)
         .slice(0, 8);
-      const products = await Promise.all(
+      const results = await Promise.allSettled(
         productIds.map((productId) => apiClient.get<ApiProduct>(`/products/${productId}/`))
       );
-      return products;
+      return results
+        .filter((r): r is PromiseFulfilledResult<ApiProduct> => r.status === "fulfilled")
+        .map((r) => r.value);
     },
     enabled: recommendations.length > 0,
   });

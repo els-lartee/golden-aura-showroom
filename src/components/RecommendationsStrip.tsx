@@ -28,10 +28,12 @@ const RecommendationsStrip = () => {
     queryFn: async () => {
       if (!recommendations.length) return [];
       const productIds = recommendations.map((item) => item.product).slice(0, 5);
-      const products = await Promise.all(
+      const results = await Promise.allSettled(
         productIds.map((productId) => apiClient.get<ApiProduct>(`/products/${productId}/`))
       );
-      return products;
+      return results
+        .filter((r): r is PromiseFulfilledResult<ApiProduct> => r.status === "fulfilled")
+        .map((r) => r.value);
     },
     enabled: recommendations.length > 0,
   });

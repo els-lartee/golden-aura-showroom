@@ -59,6 +59,8 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
   const handednessRef = useRef<HandLabel | null>(null);
   const lastReportedHandRef = useRef<HandLabel | null>(null);
   const runningRef = useRef(false);
+  const stoppedRef = useRef(false);
+  const streamRef = useRef<MediaStream | null>(null);
   const preferredHandRef = useRef<HandPreference>(preferredHand);
   const processingSizeRef = useRef<ProcessingSize>(processingSize);
 
@@ -78,18 +80,33 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
   }, [processingSize]);
 
   const stop = useCallback(() => {
+    stoppedRef.current = true;
     runningRef.current = false;
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
     }
 
-    const video = videoRef.current;
-    const stream = video?.srcObject as MediaStream | null;
+    // Stop the tracked stream (handles race with pending getUserMedia)
+    const stream = streamRef.current;
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     }
+
+    const video = videoRef.current;
     if (video) {
+      // Also stop any stream on the element in case it diverged
+      const videoStream = video.srcObject as MediaStream | null;
+      if (videoStream && videoStream !== stream) {
+        videoStream.getTracks().forEach((track) => track.stop());
+      }
       video.srcObject = null;
+    }
+
+    // Release the HandLandmarker GPU resources
+    if (landmarkerRef.current) {
+      landmarkerRef.current.close();
+      landmarkerRef.current = null;
     }
   }, []);
 
@@ -165,6 +182,13 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
         audio: false,
       });
 
+      // If stop() was called while we were awaiting getUserMedia, kill the stream immediately
+      if (stoppedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return false;
+      }
+
+      streamRef.current = stream;
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
 
@@ -233,6 +257,7 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
 
   const start = useCallback(async () => {
     if (runningRef.current) return;
+    stoppedRef.current = false;
 
     const [cameraOk, landmarker] = await Promise.all([requestCamera(), ensureLandmarker()]);
     if (!cameraOk || !landmarker) return;

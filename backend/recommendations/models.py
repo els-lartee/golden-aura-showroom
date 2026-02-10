@@ -5,6 +5,7 @@ from django.db import models
 class UserFeature(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     features = models.JSONField(blank=True, default=dict)
+    needs_rebuild = models.BooleanField(default=False, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:

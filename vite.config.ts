@@ -9,8 +9,18 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    hmr: {
+    hmr: { 
       overlay: false,
+    },
+    proxy: {
+      "/api": {
+        target: process.env.VITE_BACKEND_URL || "https://goldenaura.tech",
+        changeOrigin: true,
+      },
+      "/assets": {
+        target: process.env.VITE_BACKEND_URL || "https://goldenaura.tech",
+        changeOrigin: true,
+      },
     },
   },
   plugins: [
@@ -34,6 +44,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    assetsDir: "_assets",
     rollupOptions: {
       output: {
         manualChunks: {

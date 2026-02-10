@@ -5,10 +5,11 @@ description = "Django backend for Golden Aura Showroom"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-  "Django>=5.0,<6.0",
+  "django>=5.0,<6.0",
   "django-cors-headers>=4.3,<5.0",
   "django-crontab>=0.7,<1.0",
   "djangorestframework>=3.15,<4.0",
+  "gunicorn>=25.0.3",
   "Pillow>=10.2,<11.0",
   "psycopg2-binary>=2.9,<3.0",
   "python-dotenv>=1.0,<2.0",

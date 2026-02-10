@@ -192,10 +192,21 @@ const ARTryOn = ({ modelUrl, productName, onClose, onLoaded }: ARTryOnProps) => 
       cleanupScene = () => {
         clearTimeout(timeout);
         if (containerRef.current) {
+          // Stop all camera streams before destroying the scene
+          const videos = containerRef.current.querySelectorAll('video');
+          videos.forEach((video) => {
+            const stream = video.srcObject as MediaStream | null;
+            if (stream) {
+              stream.getTracks().forEach((track) => track.stop());
+            }
+            video.srcObject = null;
+          });
+
           // Properly dispose of the A-Frame scene
           const scene = containerRef.current.querySelector('a-scene') as any;
-          if (scene && scene.destroy) {
-            scene.destroy();
+          if (scene) {
+            if (typeof scene.destroy === 'function') scene.destroy();
+            else if (typeof scene.dispose === 'function') scene.dispose();
           }
           containerRef.current.innerHTML = '';
         }

@@ -114,8 +114,33 @@ def rebuild_recommendations_for_user(user_id: int) -> None:
     Recommendation.objects.filter(user_id=user_id).exclude(id__in=ids_to_keep).delete()
 
 
+def mark_user_dirty(user_id: int) -> None:
+    """Flag a user so the daily rebuild picks them up."""
+    from recommendations.models import UserFeature
+
+    UserFeature.objects.update_or_create(
+        user_id=user_id, defaults={"needs_rebuild": True}
+    )
+
+
+def rebuild_dirty_users() -> int:
+    """Rebuild recommendations only for users with new events since last rebuild."""
+    from recommendations.models import UserFeature
+
+    dirty = UserFeature.objects.filter(needs_rebuild=True).values_list("user_id", flat=True)
+    count = 0
+    for user_id in dirty:
+        rebuild_recommendations_for_user(user_id)
+        count += 1
+    UserFeature.objects.filter(user_id__in=dirty).update(needs_rebuild=False)
+    return count
+
+
 def rebuild_recommendations_for_all_users() -> None:
     User = get_user_model()
     user_ids = User.objects.values_list("id", flat=True)
     for user_id in user_ids:
         rebuild_recommendations_for_user(user_id)
+    # Clear dirty flags after full rebuild
+    from recommendations.models import UserFeature
+    UserFeature.objects.filter(needs_rebuild=True).update(needs_rebuild=False)
