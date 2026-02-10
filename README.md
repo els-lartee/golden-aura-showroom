@@ -4,7 +4,7 @@ Jewelry e-commerce site with AR try-on. React + Vite frontend, Django backend.
 
 ## Prerequisites
 
-- Node.js
+- Node.js 18+
 - Python 3.12+ with [uv](https://docs.astral.sh/uv/)
 
 ## Frontend
@@ -14,11 +14,7 @@ npm install
 npm run dev
 ```
 
-Create a `.env` file in the project root:
-
-```
-VITE_API_BASE_URL=http://localhost:8000/api
-```
+The dev server runs on port 8080 and proxies `/api` requests to the backend automatically.
 
 ## Backend
 
@@ -40,4 +36,24 @@ npm run test
 # backend
 cd backend && uv run python manage.py test
 ```
+
+## Deployment
+
+Both frontend and backend are deployed to the same server (DigitalOcean droplet) behind Nginx.
+
+- **Frontend:** [deploy_frontend.md](deploy_frontend.md)
+- **Backend:** [backend/deploy_backend.md](backend/deploy_backend.md)
+
+### Quick redeploy
+
+```sh
+# Frontend
+VITE_API_BASE_URL=/api npm run build
+sudo cp -r dist/* /var/www/golden-aura/frontend/
+
+# Backend
+cd backend && source .venv/bin/activate
+python manage.py migrate
+python manage.py collectstatic --noinput
+sudo systemctl restart gunicorn
 ```

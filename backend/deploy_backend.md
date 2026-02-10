@@ -1,160 +1,239 @@
-# Backend Deployment Notes
+# Backend Deployment Guide
 
 ## Server Stack
+
 - **OS:** Ubuntu (DigitalOcean Droplet)
 - **IP:** 159.223.27.66
 - **App Server:** Gunicorn (bound to Unix socket `/run/gunicorn.sock`)
 - **Reverse Proxy:** Nginx (listening on port 80)
 - **Framework:** Django + Django REST Framework
+- **Database:** PostgreSQL
 
 ---
 
-## Issues & Fixes
+## Directory Layout
 
-### 1. STATIC_URL Set to Filesystem Path
-**Error:**
 ```
-NS_ERROR_CORRUPTED_CONTENT on all static file requests
-GET http://159.223.27.66:8000/root/golden-aura-showroom/backend/golden_aura/static/rest_framework/css/bootstrap.min.css
+/var/www/golden-aura/
+├── static/          # Django static files (collectstatic output)
+├── assets/          # User-uploaded media (images, GLB models)
+└── frontend/        # Built React SPA
 ```
 
-**Cause:** `STATIC_URL` in `settings.py` was set using the filesystem path:
-```python
-STATIC_URL = f'{PROJECT_DIR}/static/'
-# Resolved to: /root/golden-aura-showroom/backend/golden_aura/static/
-```
-The browser tried to fetch files at that literal path as a URL, which doesn't exist.
+Source code lives at `/root/golden-aura-showroom/backend/`.
 
-**Fix:** Changed to a proper URL path:
-```python
-STATIC_URL = '/static/'
+---
+
+## Environment Variables
+
+Located at `/root/golden-aura-showroom/backend/golden_aura/.env`:
+
+| Variable | Description | Example |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | Django secret key | `django-insecure-...` |
+| `DJANGO_DEBUG` | Debug mode | `false` |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts | `159.223.27.66,localhost` |
+| `DJANGO_SECURE_COOKIES` | Set `true` when using HTTPS | `false` |
+| `DJANGO_USE_SQLITE` | Use SQLite instead of Postgres | `false` |
+| `DJANGO_DB_ENGINE` | Database engine | `django.db.backends.postgresql_psycopg2` |
+| `POSTGRES_DB` | Database name | `golden_aura` |
+| `POSTGRES_USER` | Database user | `elsie` |
+| `POSTGRES_PASSWORD` | Database password | `password` |
+| `POSTGRES_HOST` | Database host | `localhost` |
+| `POSTGRES_PORT` | Database port (empty = default 5432) | `` |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated CORS origins | `http://159.223.27.66` |
+| `CSRF_TRUSTED_ORIGINS` | Comma-separated CSRF origins | `http://159.223.27.66` |
+
+---
+
+## Gunicorn Service
+
+`/etc/systemd/system/gunicorn.service`:
+
+```ini
+[Unit]
+Description=gunicorn daemon
+Requires=gunicorn.socket
+After=network.target
+
+[Service]
+User=root
+Group=www-data
+WorkingDirectory=/root/golden-aura-showroom/backend
+ExecStart=/root/golden-aura-showroom/backend/.venv/bin/gunicorn \
+          --access-logfile - \
+          --workers 3 \
+          --bind unix:/run/gunicorn.sock \
+          golden_aura.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 ---
 
-### 2. CSRF Cookie Rejected on HTTP
-**Error:**
-```
-Cookie "csrftoken" has been rejected because a non-HTTPS cookie can't be set as "secure".
-```
+## Nginx Config
 
-**Cause:** `CSRF_COOKIE_SECURE` and `SESSION_COOKIE_SECURE` defaulted to `True` (via `DJANGO_SECURE_COOKIES` env var defaulting to `"true"`), but the site is served over plain HTTP.
-
-**Fix:** Changed the default to `False` in `settings.py`:
-```python
-# Before
-SECURE_COOKIES = os.getenv("DJANGO_SECURE_COOKIES", "true").lower() == "true"
-
-# After
-SECURE_COOKIES = os.getenv("DJANGO_SECURE_COOKIES", "false").lower() == "true"
-```
-Set `DJANGO_SECURE_COOKIES=true` in the environment when HTTPS is enabled.
-
----
-
-### 3. Nginx Proxy Loop (502 Bad Gateway)
-**Error:**
-```
-GET http://159.223.27.66:8000/api/ [HTTP/1.1 502 Bad Gateway]
-```
-
-**Cause:** Nginx was listening on port 8000 and proxying to `http://127.0.0.1:8000` — proxying to itself in a loop. Meanwhile, Gunicorn was bound to a Unix socket (`/run/gunicorn.sock`), not a TCP port.
-
-**Fix:** Updated `/etc/nginx/sites-available/default`:
-```nginx
-# Before
-listen 8000;
-proxy_pass http://127.0.0.1:8000;
-
-# After
-listen 80;
-proxy_pass http://unix:/run/gunicorn.sock;
-```
-
----
-
-### 4. Static Files 403 Forbidden (Permission Denied)
-**Error:**
-```
-GET http://159.223.27.66/static/rest_framework/css/bootstrap.min.css [HTTP/1.1 403 Forbidden]
-```
-
-**Cause:** Static files were being served from `/root/golden-aura-showroom/backend/golden_aura/static/`. The `/root` directory has `700` permissions, so the `www-data` user (nginx) couldn't traverse the path to reach the files.
-
-**Fix:** Moved static and media files to a proper web-accessible location:
-
-1. Created directories:
-   ```bash
-   sudo mkdir -p /var/www/golden-aura/static /var/www/golden-aura/assets
-   sudo chown -R root:www-data /var/www/golden-aura
-   sudo chmod -R 755 /var/www/golden-aura
-   ```
-
-2. Updated `settings.py`:
-   ```python
-   STATIC_ROOT = '/var/www/golden-aura/static'
-   MEDIA_ROOT = '/var/www/golden-aura/assets'
-   ```
-
-3. Collected static files:
-   ```bash
-   python manage.py collectstatic --noinput
-   ```
-
-4. Updated nginx config:
-   ```nginx
-   location /static/ {
-       alias /var/www/golden-aura/static/;
-   }
-
-   location /assets/ {
-       alias /var/www/golden-aura/assets/;
-   }
-   ```
-
----
-
-### 5. Mixed Content Errors (Pending)
-**Error:**
-```
-Blocked loading mixed active content "http://159.223.27.66/api/cart/current"
-```
-
-**Cause:** The frontend is served over HTTPS but makes API calls to the backend over plain HTTP. Browsers block mixed active content (HTTP requests from HTTPS pages).
-
-**Fix:** Either:
-- Set up HTTPS on the backend (e.g., with Let's Encrypt / Certbot)
-- Or proxy API requests through the same HTTPS origin that serves the frontend
-
----
-
-## Final Nginx Config
 `/etc/nginx/sites-available/default`:
+
 ```nginx
 server {
     listen 80;
     server_name 159.223.27.66;
 
+    client_max_body_size 50M;
+
+    # Django static files (admin, DRF, etc.)
     location /static/ {
         alias /var/www/golden-aura/static/;
     }
 
+    # Django media / uploads
     location /assets/ {
         alias /var/www/golden-aura/assets/;
     }
 
-    location / {
+    # API → gunicorn
+    location /api/ {
         proxy_pass http://unix:/run/gunicorn.sock;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
+
+    # Django admin → gunicorn
+    location /admin/ {
+        proxy_pass http://unix:/run/gunicorn.sock;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Frontend (React SPA) — serve index.html for all other routes
+    location / {
+        root /var/www/golden-aura/frontend;
+        try_files $uri $uri/ /index.html;
+    }
 }
 ```
 
-## Restart Commands
+Key settings:
+- `client_max_body_size 50M` — allows image/GLB uploads up to 50MB
+- `/api/` and `/admin/` proxy to gunicorn via Unix socket
+- `/static/` and `/assets/` served directly by nginx
+- All other routes fall through to the React SPA (`try_files`)
+
+---
+
+## Deployment Steps
+
+### Initial setup
+
 ```bash
-sudo nginx -t && sudo systemctl reload nginx
-sudo systemctl restart gunicorn
+cd /root/golden-aura-showroom/backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt   # or: uv sync
+
+# Create directories
+sudo mkdir -p /var/www/golden-aura/{static,assets,frontend}
+sudo chown -R root:www-data /var/www/golden-aura
+sudo chmod -R 755 /var/www/golden-aura
+
+# Database
+python manage.py migrate
+python manage.py createsuperuser
+
+# Static files
+python manage.py collectstatic --noinput
 ```
+
+### Deploying updates
+
+```bash
+cd /root/golden-aura-showroom/backend
+source .venv/bin/activate
+git pull
+
+# Apply migrations if needed
+python manage.py migrate
+
+# Recollect static files if changed
+python manage.py collectstatic --noinput
+
+# Restart gunicorn
+sudo systemctl restart gunicorn
+
+# If nginx config changed:
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+---
+
+## Recommendation System
+
+The recommendation system uses a **hybrid approach**:
+
+### Real-time scoring
+Every analytics event (view, click, favorite, add-to-cart, purchase) triggers `update_recommendation_from_event()` inline. This provides instant recommendation updates based on user actions.
+
+### Daily rebuild (cron)
+A daily cron job at **3:00 AM UTC** runs `rebuild_recommendations`, which:
+- Only rebuilds users flagged as "dirty" (those with new events since last rebuild)
+- Recalculates time-decay factors (older events lose weight)
+- Propagates tag-similarity scores across products
+
+```bash
+# Manual rebuild (dirty users only)
+python manage.py rebuild_recommendations
+
+# Full rebuild (all users)
+python manage.py rebuild_recommendations --full
+```
+
+The cron is configured in `settings.py`:
+```python
+CRONJOBS = [
+    ("0 3 * * *", "django.core.management.call_command", ["rebuild_recommendations"]),
+]
+```
+
+---
+
+## Common Commands
+
+```bash
+# Restart gunicorn
+sudo systemctl restart gunicorn
+
+# Reload nginx (after config changes)
+sudo nginx -t && sudo systemctl reload nginx
+
+# Check gunicorn status
+sudo systemctl status gunicorn
+
+# View gunicorn logs
+sudo journalctl -u gunicorn --no-pager -n 50
+
+# View nginx error logs
+sudo tail -50 /var/log/nginx/error.log
+
+# Django shell
+cd /root/golden-aura-showroom/backend
+source .venv/bin/activate
+python manage.py shell
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| 502 Bad Gateway | Gunicorn not running or wrong socket path | `sudo systemctl restart gunicorn` |
+| 403 on static files | Permissions on `/var/www/` | `sudo chmod -R 755 /var/www/golden-aura` |
+| 413 Request Entity Too Large | `client_max_body_size` too small | Increase in nginx config |
+| CSRF cookie rejected | `DJANGO_SECURE_COOKIES=true` on HTTP | Set to `false` in `.env` |
+| Mixed content blocked | Frontend on HTTPS, API on HTTP | Serve both from same origin or add HTTPS |
