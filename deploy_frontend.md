@@ -4,14 +4,14 @@
 
 The React frontend is a static SPA built with Vite and deployed alongside the Django backend on the same server. Nginx serves the built files directly — no Node.js process runs in production.
 
-**URL:** http://159.223.27.66
+**URL:** https://goldenaura.tech (IP requests return 404; use the domain)
 
 ---
 
 ## Architecture
 
 ```
-Browser → Nginx (port 80)
+Browser → Nginx (port 443, HTTPS)
             ├── /              → /var/www/golden-aura/frontend/  (React SPA)
             ├── /api/          → gunicorn (Django)
             ├── /admin/        → gunicorn (Django)
@@ -49,7 +49,7 @@ Vite injects env vars at **build time** (not runtime). Set them before `npm run 
 | Variable | Description | Default | Production |
 |---|---|---|---|
 | `VITE_API_BASE_URL` | API base path | `/api` | `/api` |
-| `VITE_BACKEND_URL` | Backend URL (dev proxy only) | `http://159.223.27.66` | N/A |
+| `VITE_BACKEND_URL` | Backend URL (dev proxy only) | `https://goldenaura.tech` | N/A |
 
 For production builds, the default `/api` is correct — requests are routed by nginx to gunicorn on the same server.
 
@@ -93,11 +93,11 @@ The Vite dev server (port 8080) proxies `/api` and `/assets` requests to the bac
 ```ts
 proxy: {
   "/api": {
-    target: process.env.VITE_BACKEND_URL || "http://159.223.27.66",
+    target: process.env.VITE_BACKEND_URL || "https://goldenaura.tech",
     changeOrigin: true,
   },
   "/assets": {
-    target: process.env.VITE_BACKEND_URL || "http://159.223.27.66",
+    target: process.env.VITE_BACKEND_URL || "https://goldenaura.tech",
     changeOrigin: true,
   },
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AnimatePresence, m } from "framer-motion";
 import { Search, SlidersHorizontal, X } from "lucide-react";
@@ -6,11 +6,12 @@ import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
-import ARModal from "@/components/ARModal";
+const ARModal = lazy(() => import("@/components/ARModal"));
 import RecommendationsStrip from "@/components/RecommendationsStrip";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
 import { getProductCategory, getProductImages, getProductModelUrl } from "@/lib/productAdapters";
+import { getProductJewelryType, type JewelryType } from "@/lib/jewelryConfig";
 import { trackEventSafe } from "@/hooks/useAnalytics";
 import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
 import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
@@ -28,6 +29,8 @@ const Catalog = () => {
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
   const [activeModelUrl, setActiveModelUrl] = useState<string | null>(null);
+  const [activeProductId, setActiveProductId] = useState<number | null>(null);
+  const [activeJewelryType, setActiveJewelryType] = useState<JewelryType | null>(null);
   const { data: me } = useMe();
   const { toast } = useToast();
   const { data: favorites = [] } = useFavorites(Boolean(me?.user));
@@ -107,6 +110,8 @@ const Catalog = () => {
       }
       setActiveProductName(product.title);
       setActiveModelUrl(modelUrl);
+      setActiveProductId(product.id);
+      setActiveJewelryType(getProductJewelryType(product, categories) ?? "ring");
       setIsTryOnOpen(true);
     }
   };
@@ -405,15 +410,29 @@ const Catalog = () => {
       </main>
       <Footer />
 
-      <ARModal
-        isOpen={isTryOnOpen}
-        modelUrl={activeModelUrl}
-        productName={activeProductName}
-        onClose={() => {
-          setIsTryOnOpen(false);
-          setActiveModelUrl(null);
-        }}
-      />
+      {isTryOnOpen && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center text-white">
+              <span className="text-sm uppercase tracking-[0.2em]">Loading AR...</span>
+            </div>
+          }
+        >
+          <ARModal
+            isOpen={isTryOnOpen}
+            modelUrl={activeModelUrl}
+            productName={activeProductName}
+            productId={activeProductId}
+            jewelryType={activeJewelryType ?? undefined}
+            onClose={() => {
+              setIsTryOnOpen(false);
+              setActiveModelUrl(null);
+              setActiveProductId(null);
+              setActiveJewelryType(null);
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

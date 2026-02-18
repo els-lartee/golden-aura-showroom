@@ -33,6 +33,7 @@ Key variables for local dev:
 DJANGO_DEBUG=true
 DJANGO_USE_SQLITE=true
 DJANGO_SECURE_COOKIES=false
+AR_MIN_ENGAGED_SECONDS=20
 ```
 
 ## Tests
@@ -77,5 +78,5 @@ python manage.py rebuild_recommendations --full
 
 ## Deployment
 
-See [deploy_backend.md](deploy_backend.md) for the full production deployment guide.
+See [deploy_backend.md](deploy_backend.md) for the full production deployment guide (HTTPS on goldenaura.tech).
 

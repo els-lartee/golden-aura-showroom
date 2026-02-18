@@ -3,9 +3,9 @@
 ## Server Stack
 
 - **OS:** Ubuntu (DigitalOcean Droplet)
-- **IP:** 159.223.27.66
+- **Domain:** goldenaura.tech
 - **App Server:** Gunicorn (bound to Unix socket `/run/gunicorn.sock`)
-- **Reverse Proxy:** Nginx (listening on port 80)
+- **Reverse Proxy:** Nginx (listening on port 443, HTTPS)
 - **Framework:** Django + Django REST Framework
 - **Database:** PostgreSQL
 
@@ -32,7 +32,7 @@ Located at `/root/golden-aura-showroom/backend/golden_aura/.env`:
 |---|---|---|
 | `DJANGO_SECRET_KEY` | Django secret key | `django-insecure-...` |
 | `DJANGO_DEBUG` | Debug mode | `false` |
-| `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts | `159.223.27.66,localhost` |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts | `goldenaura.tech,www.goldenaura.tech,localhost` |
 | `DJANGO_SECURE_COOKIES` | Set `true` when using HTTPS | `false` |
 | `DJANGO_USE_SQLITE` | Use SQLite instead of Postgres | `false` |
 | `DJANGO_DB_ENGINE` | Database engine | `django.db.backends.postgresql_psycopg2` |
@@ -41,8 +41,9 @@ Located at `/root/golden-aura-showroom/backend/golden_aura/.env`:
 | `POSTGRES_PASSWORD` | Database password | `password` |
 | `POSTGRES_HOST` | Database host | `localhost` |
 | `POSTGRES_PORT` | Database port (empty = default 5432) | `` |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated CORS origins | `http://159.223.27.66` |
-| `CSRF_TRUSTED_ORIGINS` | Comma-separated CSRF origins | `http://159.223.27.66` |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated CORS origins | `https://goldenaura.tech` |
+| `CSRF_TRUSTED_ORIGINS` | Comma-separated CSRF origins | `https://goldenaura.tech` |
+| `AR_MIN_ENGAGED_SECONDS` | Minimum AR session duration (seconds) to score recommendations | `20` |
 
 ---
 
@@ -78,8 +79,7 @@ WantedBy=multi-user.target
 
 ```nginx
 server {
-    listen 80;
-    server_name 159.223.27.66;
+    server_name goldenaura.tech www.goldenaura.tech;
 
     client_max_body_size 50M;
 
@@ -116,6 +116,25 @@ server {
         root /var/www/golden-aura/frontend;
         try_files $uri $uri/ /index.html;
     }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/goldenaura.tech/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/goldenaura.tech/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+server {
+    if ($host = www.goldenaura.tech) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    if ($host = goldenaura.tech) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    listen 80;
+    server_name goldenaura.tech www.goldenaura.tech;
+    return 404; # managed by Certbot
 }
 ```
 

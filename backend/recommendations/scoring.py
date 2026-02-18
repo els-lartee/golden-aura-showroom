@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from math import exp
 
 from django.contrib.auth import get_user_model
+from django.conf import settings
 
 from analytics.models import Event
 from catalog.models import Product
@@ -16,11 +17,15 @@ EVENT_WEIGHTS = {
     Event.EventType.FAVORITE: 4.0,
     Event.EventType.ADD_TO_CART: 5.0,
     Event.EventType.PURCHASE: 8.0,
+    Event.EventType.AR_SESSION_START: 1.5,
+    Event.EventType.AR_SESSION_END: 4.0,
+    Event.EventType.AR_SCREENSHOT: 3.0,
 }
 
 DECAY_DAYS = 7
 MAX_RECOMMENDATIONS_PER_USER = 50
 TAG_SIMILARITY_WEIGHT = 0.5
+AR_MIN_ENGAGED_SECONDS = getattr(settings, "AR_MIN_ENGAGED_SECONDS", 20)
 
 
 def _decay_factor(created_at: datetime) -> float:
@@ -39,8 +44,24 @@ def _duration_boost(metadata: dict) -> float:
     return min(1.0 + seconds / 30.0, 2.0)
 
 
+def _get_duration_seconds(metadata: dict) -> float:
+    seconds = metadata.get("duration_seconds") or metadata.get("seconds") or metadata.get("duration") or 0
+    try:
+        return float(seconds)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _should_score_event(event: Event) -> bool:
+    if event.event_type == Event.EventType.AR_SESSION_END:
+        return _get_duration_seconds(event.metadata) >= AR_MIN_ENGAGED_SECONDS
+    return True
+
+
 def update_recommendation_from_event(event: Event) -> None:
     if not event.user_id or not event.product_id:
+        return
+    if not _should_score_event(event):
         return
 
     base_weight = EVENT_WEIGHTS.get(event.event_type, 1.0)
@@ -76,6 +97,8 @@ def rebuild_recommendations_for_user(user_id: int) -> None:
     scores: dict[int, float] = {}
     tag_weights: dict[int, float] = {}
     for event in events:
+        if not _should_score_event(event):
+            continue
         if not event.product_id:
             continue
         base_weight = EVENT_WEIGHTS.get(event.event_type, 1.0)

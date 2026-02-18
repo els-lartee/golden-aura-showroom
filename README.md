@@ -37,9 +37,15 @@ npm run test
 cd backend && uv run python manage.py test
 ```
 
+## AR Tracking
+
+The AR try-on uses normalized MediaPipe hand landmarks only (no world landmarks).
+Rotation is derived from landmark vectors, and depth/scale are driven by landmark z
+values plus 2D projected distances.
+
 ## Deployment
 
-Both frontend and backend are deployed to the same server (DigitalOcean droplet) behind Nginx.
+Both frontend and backend are deployed to the same server (DigitalOcean droplet) behind Nginx with TLS.
 
 - **Frontend:** [deploy_frontend.md](deploy_frontend.md)
 - **Backend:** [backend/deploy_backend.md](backend/deploy_backend.md)
