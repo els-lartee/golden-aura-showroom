@@ -6,6 +6,7 @@ const mockClose = vi.fn();
 const mockDetectForVideo = vi.fn().mockReturnValue({
   landmarks: [],
   handedness: [],
+  worldLandmarks: [],
 });
 
 vi.mock("@mediapipe/tasks-vision", () => ({
@@ -31,10 +32,17 @@ const FAKE_LANDMARKS = Array.from({ length: 21 }, (_, i) => ({
   z: 0,
 }));
 
+const FAKE_WORLD_LANDMARKS = Array.from({ length: 21 }, (_, i) => ({
+  x: (i / 21) * 0.1,
+  y: (i / 21) * 0.08,
+  z: -0.02 * (i % 5),
+}));
+
 const makeResult = (overrides?: {
   label?: string;
   score?: number;
   landmarks?: unknown[];
+  worldLandmarks?: unknown[];
 }) => ({
   landmarks: [overrides?.landmarks ?? FAKE_LANDMARKS],
   handedness: [
@@ -45,6 +53,7 @@ const makeResult = (overrides?: {
       },
     ],
   ],
+  worldLandmarks: [overrides?.worldLandmarks ?? FAKE_WORLD_LANDMARKS],
 });
 
 /** Stub out the video element so the hook can "play" it. */
@@ -93,6 +102,7 @@ describe("useHandTracking", () => {
     const { result } = renderHook(() => useHandTracking());
     expect(result.current.videoRef).toBeDefined();
     expect(result.current.landmarksRef).toBeDefined();
+    expect(result.current.worldLandmarksRef).toBeDefined();
     expect(result.current.handednessRef).toBeDefined();
     expect(result.current.fovRef).toBeDefined();
   });
@@ -184,6 +194,7 @@ describe("useHandTracking", () => {
 
     // Landmarks should remain null because score < minConfidence
     expect(result.current.landmarksRef.current).toBeNull();
+    expect(result.current.worldLandmarksRef.current).toBeNull();
 
     act(() => {
       result.current.stop();

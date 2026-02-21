@@ -73,7 +73,7 @@ export const HandOcclusionMesh = ({
 
     mesh.visible = true;
 
-    // Convert landmarks to 3D positions in the same space as JewelryModel
+    // Convert landmarks to 3D positions in the same space as RingModel
     const positions = landmarksToPositions(landmarks, viewport, depthScale);
     const attr = geometry.getAttribute("position") as Float32BufferAttribute;
     attr.set(positions);

@@ -11,7 +11,6 @@ import { describe, it, expect, vi } from "vitest";
  *  - Surface offset direction
  *  - Anchor averaging (single and multi-landmark)
  *  - Axial offset for bracelets
- *  - Depth estimation from physical vs projected landmark distance
  *  - Orthogonal basis construction (Gram-Schmidt)
  *  - Palm vs backhand detection via palm-normal z-sign
  *  - One Euro Filter integration (tested separately in oneEuroFilter.test.ts)
@@ -38,6 +37,7 @@ function computeScale(
     palmScaleFactor?: number;
     minScale?: number;
     maxScale?: number;
+    sizeMultiplier?: number;
   } = {},
 ) {
   const {
@@ -46,12 +46,16 @@ function computeScale(
     palmScaleFactor = 2,
     minScale = 0.07,
     maxScale = 0.28,
+    sizeMultiplier = 1,
   } = opts;
-  return clamp(
+  const rawScale = clamp(
     baseScale + segmentLength2D * fingerScaleFactor + palmSpan2D * palmScaleFactor,
     minScale,
     maxScale,
   );
+  const scaledMin = minScale * sizeMultiplier;
+  const scaledMax = maxScale * sizeMultiplier;
+  return clamp(rawScale * sizeMultiplier, scaledMin, scaledMax);
 }
 
 /** Simulate the NDC → viewport position mapping with depth adjustment */
@@ -68,31 +72,6 @@ function ndcToViewport(
     y: -(y - 0.5) * viewport.height * depthRatio,
     z: -depth,
   };
-}
-
-/** Simulate depth estimation — the core of the new scaling approach */
-function estimateDepth(
-  normA: { x: number; y: number },
-  normB: { x: number; y: number },
-  worldA: { x: number; y: number; z: number },
-  worldB: { x: number; y: number; z: number },
-  fovDeg: number,
-): number {
-  const dx = worldB.x - worldA.x;
-  const dy = worldB.y - worldA.y;
-  const dz = worldB.z - worldA.z;
-  const physicalDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-  const sx = normB.x - normA.x;
-  const sy = normB.y - normA.y;
-  const projectedDist = Math.sqrt(sx * sx + sy * sy);
-
-  if (projectedDist < 1e-6) return 0.5;
-
-  const halfFovRad = ((fovDeg / 2) * Math.PI) / 180;
-  const depth = physicalDist / (projectedDist * 2 * Math.tan(halfFovRad));
-
-  return clamp(depth, 0.15, 2.0);
 }
 
 /** Simulate the finger surface offset computation */
@@ -151,62 +130,11 @@ describe("JewelryModel — scale clamping (ring defaults)", () => {
     const s = computeScale(segLen, palmSpan);
     expect(s).toBe(0.28);
   });
-});
 
-describe("JewelryModel — depth estimation", () => {
-  it("returns larger depth when projected distance is small (hand far away)", () => {
-    const depthFar = estimateDepth(
-      { x: 0.48, y: 0.48 }, { x: 0.52, y: 0.52 }, // small projected spread
-      { x: 0, y: 0, z: 0 }, { x: 0.08, y: 0.04, z: 0.01 }, // ~0.09m physical
-      50,
-    );
-    const depthClose = estimateDepth(
-      { x: 0.3, y: 0.3 }, { x: 0.7, y: 0.7 }, // large projected spread
-      { x: 0, y: 0, z: 0 }, { x: 0.08, y: 0.04, z: 0.01 }, // same physical
-      50,
-    );
-    expect(depthFar).toBeGreaterThan(depthClose);
-  });
-
-  it("clamps depth to minimum 0.15", () => {
-    // Huge projected distance → depth ≈ 0 → clamped to 0.15
-    const depth = estimateDepth(
-      { x: 0, y: 0 }, { x: 1, y: 1 },
-      { x: 0, y: 0, z: 0 }, { x: 0.01, y: 0, z: 0 }, // tiny physical
-      50,
-    );
-    expect(depth).toBe(0.15);
-  });
-
-  it("clamps depth to maximum 2.0", () => {
-    // Tiny projected distance → depth very large → clamped to 2.0
-    const depth = estimateDepth(
-      { x: 0.499, y: 0.499 }, { x: 0.501, y: 0.501 },
-      { x: 0, y: 0, z: 0 }, { x: 0.1, y: 0, z: 0 }, // large physical
-      50,
-    );
-    expect(depth).toBe(2.0);
-  });
-
-  it("returns fallback when projected distance is degenerate", () => {
-    const depth = estimateDepth(
-      { x: 0.5, y: 0.5 }, { x: 0.5, y: 0.5 }, // zero projected
-      { x: 0, y: 0, z: 0 }, { x: 0.08, y: 0, z: 0 },
-      50,
-    );
-    expect(depth).toBe(0.5); // fallback
-  });
-
-  it("accounts for FOV — wider FOV yields less depth for same projected size", () => {
-    const args = {
-      normA: { x: 0.4, y: 0.4 },
-      normB: { x: 0.6, y: 0.6 },
-      worldA: { x: 0, y: 0, z: 0 },
-      worldB: { x: 0.08, y: 0.04, z: 0 },
-    };
-    const depthNarrow = estimateDepth(args.normA, args.normB, args.worldA, args.worldB, 30);
-    const depthWide = estimateDepth(args.normA, args.normB, args.worldA, args.worldB, 90);
-    expect(depthNarrow).toBeGreaterThan(depthWide);
+  it("scales up when size multiplier increases", () => {
+    const base = computeScale(0.03, 0.05);
+    const up = computeScale(0.03, 0.05, { sizeMultiplier: 1.2 });
+    expect(up).toBeGreaterThan(base);
   });
 });
 

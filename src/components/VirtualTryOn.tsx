@@ -70,7 +70,7 @@ export const VirtualTryOn = ({
   const [handChoice, setHandChoice] = useState<HandPreference>(initialHand);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { videoRef, landmarksRef, handednessRef, fovRef, status, isModelLoading, start, stop, mirrored } = useHandTracking({
+  const { videoRef, landmarksRef, worldLandmarksRef, handednessRef, fovRef, status, isModelLoading, start, stop, mirrored } = useHandTracking({
     preferredHand: handChoice,
     processingSize,
   });
@@ -126,7 +126,9 @@ export const VirtualTryOn = ({
           <JewelryModel
             modelUrl={modelUrl}
             landmarksRef={landmarksRef}
+            worldLandmarksRef={worldLandmarksRef}
             handednessRef={handednessRef}
+            fovRef={fovRef}
             jewelryType={jewelryType}
           />
           <ContactShadows

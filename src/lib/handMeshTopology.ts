@@ -87,16 +87,16 @@ export const HAND_TRIANGLE_COUNT = HAND_TRIANGLE_INDICES.length / 3;
 /**
  * Convert 21 MediaPipe normalized landmarks into a Float32Array of
  * 3D vertex positions (63 floats = 21 vertices × 3 components)
- * in the same coordinate space used by JewelryModel.
+ * in the same coordinate space used by RingModel.
  *
- * The mapping mirrors JewelryModel's NDC→viewport conversion:
+ * The mapping mirrors RingModel's NDC→viewport conversion:
  *   x = (landmark.x − 0.5) × viewport.width
  *   y = −(landmark.y − 0.5) × viewport.height
  *   z = −landmark.z × depthScale
  *
  * @param landmarks  Array of 21 NormalizedLandmark from MediaPipe.
  * @param viewport   `{ width, height }` — the R3F viewport size in world units.
- * @param depthScale Depth multiplier (must match JewelryModel's depthScale).
+ * @param depthScale Depth multiplier (must match RingModel's depthScale).
  * @returns Float32Array of length 63.
  */
 export const landmarksToPositions = (

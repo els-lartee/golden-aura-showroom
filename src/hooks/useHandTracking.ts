@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   HandLandmarker,
   HandLandmarkerResult,
+  Landmark,
   NormalizedLandmark,
 } from "@mediapipe/tasks-vision";
 
@@ -60,6 +61,7 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
   const rafRef = useRef<number>();
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const landmarksRef = useRef<NormalizedLandmark[] | null>(null);
+  const worldLandmarksRef = useRef<Landmark[] | null>(null);
   const handednessRef = useRef<HandLabel | null>(null);
   const lastReportedHandRef = useRef<HandLabel | null>(null);
   const fovRef = useRef<number>(50);
@@ -266,6 +268,7 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
       const score = handIndex !== null ? (result?.handedness?.[handIndex]?.[0]?.score ?? 0) : 0;
       if (handIndex !== null && result?.landmarks?.[handIndex] && score >= minConfidence) {
         landmarksRef.current = result.landmarks[handIndex];
+        worldLandmarksRef.current = result.worldLandmarks?.[handIndex] ?? null;
         const label = result.handedness?.[handIndex]?.[0]?.categoryName as HandLabel | undefined;
         handednessRef.current = label ?? null;
 
@@ -278,6 +281,7 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
         }
       } else {
         landmarksRef.current = null;
+        worldLandmarksRef.current = null;
         handednessRef.current = null;
         if (lastReportedHandRef.current) {
           lastReportedHandRef.current = null;
@@ -303,6 +307,7 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
 
   const reset = useCallback(() => {
     landmarksRef.current = null;
+    worldLandmarksRef.current = null;
     handednessRef.current = null;
     setStatus({ permission: "idle", pipeline: "idle", detectedHand: null });
   }, []);
@@ -312,6 +317,7 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
   return {
     videoRef,
     landmarksRef,
+    worldLandmarksRef,
     handednessRef,
     fovRef,
     status,

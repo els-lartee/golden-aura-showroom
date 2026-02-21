@@ -2,7 +2,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
-import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import type { Landmark, NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { Group, Matrix4, Quaternion, Vector3 } from "three";
 import { OneEuroFilter, OneEuroFilter3, OneEuroFilter4 } from "@/lib/oneEuroFilter";
 import { getAnchorConfig, type JewelryType } from "@/lib/jewelryConfig";
@@ -10,8 +10,12 @@ import { getAnchorConfig, type JewelryType } from "@/lib/jewelryConfig";
 export interface JewelryModelProps {
   modelUrl: string;
   landmarksRef: MutableRefObject<NormalizedLandmark[] | null>;
+  /** World-space landmarks (meters) for rotation, scale, and palm detection. */
+  worldLandmarksRef: MutableRefObject<Landmark[] | null>;
   /** Hand label ref for palm-normal sign correction per handedness. */
   handednessRef: MutableRefObject<"Left" | "Right" | null>;
+  /** Camera vertical FOV ref (degrees) for depth estimation. */
+  fovRef: MutableRefObject<number>;
   /** Which type of jewelry to anchor. Determines default landmarks, scale, and offset. */
   jewelryType?: JewelryType;
   depthScale?: number;
@@ -30,15 +34,48 @@ export interface JewelryModelProps {
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const toCameraSpace = (lm: NormalizedLandmark, depthScale: number, out: Vector3) => {
-  out.set(lm.x, -lm.y, -lm.z * depthScale);
-  return out;
-};
+/**
+ * Estimate camera-to-hand depth by comparing a known physical distance
+ * (from worldLandmarks, in meters) to its projected size on screen
+ * (from normalised landmarks in [0,1]).
+ *
+ * depth ≈ physicalSize / (projectedSize × 2 × tan(fov/2))
+ *
+ * Returns the distance in R3F world units (≈ meters for our camera setup).
+ */
+function estimateDepth(
+  normA: NormalizedLandmark,
+  normB: NormalizedLandmark,
+  worldA: Landmark,
+  worldB: Landmark,
+  fovDeg: number,
+): number {
+  // Physical (world) 3D distance between ref landmarks
+  const dx = worldB.x - worldA.x;
+  const dy = worldB.y - worldA.y;
+  const dz = worldB.z - worldA.z;
+  const physicalDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+  // Projected 2D distance (normalised screen coords, use only x/y)
+  const sx = normB.x - normA.x;
+  const sy = normB.y - normA.y;
+  const projectedDist = Math.sqrt(sx * sx + sy * sy);
+
+  if (projectedDist < 1e-6) return 0.5; // fallback — hand fills screen or degenerate
+
+  const halfFovRad = ((fovDeg / 2) * Math.PI) / 180;
+  const depth = physicalDist / (projectedDist * 2 * Math.tan(halfFovRad));
+
+  // Clamp to sane range (0.15m–2m typical arm's length)
+  return clamp(depth, 0.15, 2.0);
+}
 
 export const JewelryModel = ({
   modelUrl,
   landmarksRef,
+  worldLandmarksRef,
   handednessRef,
+  fovRef,
   jewelryType = "ring",
   depthScale = 2,
   baseScale: baseScaleOverride,
@@ -91,13 +128,11 @@ export const JewelryModel = ({
   const rotMatrix = useMemo(() => new Matrix4(), []);
   const correctedNormal = useMemo(() => new Vector3(), []);
   const sideVec = useMemo(() => new Vector3(), []);
-  const fromVec = useMemo(() => new Vector3(), []);
-  const toVec = useMemo(() => new Vector3(), []);
-  const wristVec = useMemo(() => new Vector3(), []);
 
   useFrame(() => {
     const model = modelRef.current;
     const landmarks = landmarksRef.current;
+    const worldLandmarks = worldLandmarksRef.current;
     if (!model || !landmarks || landmarks.length <= 17) {
       if (model) model.visible = false;
       // Reset filters when hand disappears so we don't carry stale state
@@ -115,59 +150,62 @@ export const JewelryModel = ({
     const toLM = landmarks[config.directionLandmarks[1]];
     const wrist = landmarks[0];
     const indexKnuckle = landmarks[5];
-    const pinkyKnuckle = landmarks[17];
 
-    // ── Rotation from normalized landmarks ──
-    toCameraSpace(fromLM, depthScale, fromVec);
-    toCameraSpace(toLM, depthScale, toVec);
-    dir.copy(toVec).sub(fromVec);
+    // World-space landmarks for rotation, scale, and palm detection
+    const hasWorld = worldLandmarks && worldLandmarks.length > 17;
+    const wWorld = hasWorld ? worldLandmarks : null;
 
-    if (dir.lengthSq() < 1e-6) {
-      model.visible = false;
-      return;
-    }
+    // ── Rotation from world landmarks (or fall back to normalized) ──
+    if (wWorld) {
+      const wFrom = wWorld[config.directionLandmarks[0]];
+      const wTo = wWorld[config.directionLandmarks[1]];
+      const wWrist = wWorld[0];
+      const wIndex = wWorld[5];
+      const wPinky = wWorld[17];
 
-    dir.normalize();
+      // Direction vector from world landmarks (real 3D, no projection distortion)
+      // MediaPipe world coords: x-right, y-up, z-toward-camera
+      // Three.js: x-right, y-up, z-toward-viewer — same convention
+      dir.set(wTo.x - wFrom.x, wTo.y - wFrom.y, wTo.z - wFrom.z);
+      dir.normalize();
 
-    toCameraSpace(wrist, depthScale, wristVec);
-    toCameraSpace(indexKnuckle, depthScale, indexVec).sub(wristVec).normalize();
-    toCameraSpace(pinkyKnuckle, depthScale, pinkyVec).sub(wristVec).normalize();
+      // Build palm orientation basis from world landmarks
+      indexVec.set(wIndex.x - wWrist.x, wIndex.y - wWrist.y, wIndex.z - wWrist.z).normalize();
+      pinkyVec.set(wPinky.x - wWrist.x, wPinky.y - wWrist.y, wPinky.z - wWrist.z).normalize();
 
-    // Initial palm normal from cross product of index and pinky vectors
-    palmVec.copy(indexVec).cross(pinkyVec).normalize();
+      // Initial palm normal from cross product of index and pinky vectors
+      palmVec.copy(indexVec).cross(pinkyVec).normalize();
 
-    // For Left hand in MediaPipe, the cross product index×pinky may point
-    // away from the palm. Normalize so palmNormal always points
-    // toward the viewer when the palm faces the camera.
-    // MediaPipe "Right" label on front camera = user's right hand, palm faces camera → normal.z > 0
-    // MediaPipe "Left" label on front camera = user's left hand, palm faces camera → normal.z < 0 (needs flip)
-    const handLabel = handednessRef.current;
-    if (handLabel === "Left") {
-      palmVec.negate();
-    }
+      // For Left hand in MediaPipe, the cross product index×pinky may point
+      // away from the palm. Normalize so palmNormal always points
+      // toward the viewer when the palm faces the camera.
+      // MediaPipe "Right" label on front camera = user's right hand, palm faces camera → normal.z > 0
+      // MediaPipe "Left" label on front camera = user's left hand, palm faces camera → normal.z < 0 (needs flip)
+      const handLabel = handednessRef.current;
+      if (handLabel === "Left") {
+        palmVec.negate();
+      }
 
-    // ── Palm vs backhand detection ──
-    // palmVec.z > 0 → palm faces camera; palmVec.z < 0 → backhand faces camera
-    // Use hysteresis to prevent flickering at edge angles
-    const PALM_THRESHOLD = 0.15;
-    if (palmFacingRef.current) {
-      // Currently palm-facing, require z < -threshold to switch to backhand
-      if (palmVec.z < -PALM_THRESHOLD) palmFacingRef.current = false;
-    } else {
-      // Currently backhand-facing, require z > +threshold to switch to palm
-      if (palmVec.z > PALM_THRESHOLD) palmFacingRef.current = true;
-    }
+      // ── Palm vs backhand detection ──
+      // palmVec.z > 0 → palm faces camera; palmVec.z < 0 → backhand faces camera
+      // Use hysteresis to prevent flickering at edge angles
+      const PALM_THRESHOLD = 0.15;
+      if (palmFacingRef.current) {
+        // Currently palm-facing, require z < -threshold to switch to backhand
+        if (palmVec.z < -PALM_THRESHOLD) palmFacingRef.current = false;
+      } else {
+        // Currently backhand-facing, require z > +threshold to switch to palm
+        if (palmVec.z > PALM_THRESHOLD) palmFacingRef.current = true;
+      }
 
-    // ── Orthogonal basis construction (Gram-Schmidt) ──
-    // Primary axis: dir (finger direction) — preserved exactly
-    // Secondary reference: palmVec
-    // Derive side = cross(dir, palmVec), then correctedNormal = cross(side, dir)
-    // to ensure a right-handed orthonormal frame (det = +1)
-    sideVec.crossVectors(dir, palmVec);
-    const hasBasis = sideVec.lengthSq() > 1e-6;
-    if (hasBasis) {
-      sideVec.normalize();
+      // ── Orthogonal basis construction (Gram-Schmidt) ──
+      // Primary axis: dir (finger direction) — preserved exactly
+      // Secondary reference: palmVec
+      // Derive side = cross(dir, palmVec), then correctedNormal = cross(side, dir)
+      // to ensure a right-handed orthonormal frame (det = +1)
+      sideVec.crossVectors(dir, palmVec).normalize();
       correctedNormal.crossVectors(sideVec, dir).normalize();
+
       rotMatrix.makeBasis(sideVec, dir, correctedNormal);
       quat.setFromRotationMatrix(rotMatrix);
 
@@ -178,11 +216,13 @@ export const JewelryModel = ({
         quat.premultiply(flipQuat);
       }
     } else {
-      correctedNormal.set(0, 0, 0);
+      // Fallback: use normalized landmarks (legacy path)
+      dir.set(toLM.x - fromLM.x, -(toLM.y - fromLM.y), -(toLM.z - fromLM.z));
+      dir.normalize();
       quat.setFromUnitVectors(up, dir);
     }
 
-    // ── Position: screen x/y from normalized landmarks + depth from normalized z ──
+    // ── Position: screen x/y from normalized landmarks + depth from world landmarks ──
     const { width, height } = viewport;
     const cameraZ = camera.position.z; // camera distance from z=0 reference plane
     let anchorX = 0, anchorY = 0;
@@ -193,13 +233,18 @@ export const JewelryModel = ({
     anchorX /= anchorLMs.length;
     anchorY /= anchorLMs.length;
 
-    let anchorZ = 0;
-    for (const lm of anchorLMs) anchorZ += lm.z;
-    anchorZ /= anchorLMs.length;
-
-    const wristZ = wrist?.z ?? anchorZ;
-    const depthBase = clamp(cameraZ * 0.4, 0.35, 1.2);
-    const depth = clamp(depthBase + (anchorZ - wristZ) * depthScale, 0.2, 2.2);
+    // Estimate depth using physical vs projected size
+    let depth: number;
+    if (wWorld) {
+      const [refA, refB] = config.depthReferenceLandmarks;
+      depth = estimateDepth(landmarks[refA], landmarks[refB], wWorld[refA], wWorld[refB], fovRef.current);
+    } else {
+      // Fallback: use normalized z with depthScale
+      let anchorZ = 0;
+      for (const lm of anchorLMs) anchorZ += lm.z;
+      anchorZ /= anchorLMs.length;
+      depth = anchorZ * depthScale;
+    }
 
     // The viewport dimensions are for the z=0 plane (distance cameraZ from camera).
     // The ring sits at z = -depth (distance cameraZ + depth from camera).
@@ -213,12 +258,22 @@ export const JewelryModel = ({
     );
 
     // Surface offset: push the model outward from the bone centerline
-    if (surfaceOffset !== 0 && correctedNormal.lengthSq() > 1e-6) {
+    if (wWorld && surfaceOffset !== 0) {
       // Outward direction = cross(dir, correctedNormal)
       outwardVec.crossVectors(dir, correctedNormal).normalize();
       // When palm faces camera, flip offset to the visible side
       if (palmFacingRef.current) outwardVec.negate();
       targetPos.addScaledVector(outwardVec, surfaceOffset);
+    } else if (!wWorld && surfaceOffset !== 0) {
+      // Legacy fallback: approximate outward from normalized landmarks
+      const pinkyKnuckle = landmarks[17];
+      if (wrist && indexKnuckle && pinkyKnuckle) {
+        const niVec = new Vector3(indexKnuckle.x - wrist.x, -(indexKnuckle.y - wrist.y), -(indexKnuckle.z - wrist.z)).normalize();
+        const npVec = new Vector3(pinkyKnuckle.x - wrist.x, -(pinkyKnuckle.y - wrist.y), -(pinkyKnuckle.z - wrist.z)).normalize();
+        const nPalmNormal = new Vector3().copy(niVec).cross(npVec).normalize();
+        outwardVec.crossVectors(dir, nPalmNormal).normalize();
+        targetPos.addScaledVector(outwardVec, surfaceOffset);
+      }
     }
 
     // Axial offset: push along the negative direction axis (e.g., toward forearm for bracelets)
@@ -235,24 +290,44 @@ export const JewelryModel = ({
     const [qx, qy, qz, qw] = quatFilter.current!.filter(quat.x, quat.y, quat.z, quat.w, t);
     model.quaternion.set(qx, qy, qz, qw).normalize();
 
-    // ── Scale: use 2D projected distances (normalized x/y) ──
-    const fromN = landmarks[config.directionLandmarks[0]];
-    const toN = landmarks[config.directionLandmarks[1]];
-    const segmentLength2D = Math.max(1e-4, Math.sqrt(
-      (toN.x - fromN.x) ** 2 + (toN.y - fromN.y) ** 2,
-    ));
+    // ── Scale: use world landmarks for perspective-correct sizing ──
+    let rawScale: number;
+    if (wWorld) {
+      // Use 2D projected distances (from normalized landmarks, x/y only)
+      // so that scale responds to camera distance naturally
+      const fromN = landmarks[config.directionLandmarks[0]];
+      const toN = landmarks[config.directionLandmarks[1]];
+      const segmentLength2D = Math.max(1e-4, Math.sqrt(
+        (toN.x - fromN.x) ** 2 + (toN.y - fromN.y) ** 2,
+      ));
 
-    const palmSpan2D = wrist && indexKnuckle
-      ? Math.max(1e-4, Math.sqrt(
-          (indexKnuckle.x - wrist.x) ** 2 + (indexKnuckle.y - wrist.y) ** 2,
-        ))
-      : 0;
+      const palmSpan2D = wrist && indexKnuckle
+        ? Math.max(1e-4, Math.sqrt(
+            (indexKnuckle.x - wrist.x) ** 2 + (indexKnuckle.y - wrist.y) ** 2,
+          ))
+        : 0;
 
-    const rawScale = clamp(
-      baseScale + segmentLength2D * scaleFactor + palmSpan2D * palmScaleFactor,
-      minScale,
-      maxScale,
-    );
+      rawScale = clamp(
+        baseScale + segmentLength2D * scaleFactor + palmSpan2D * palmScaleFactor,
+        minScale,
+        maxScale,
+      );
+    } else {
+      // Legacy fallback
+      const segmentLength = Math.max(1e-4, dir.length());
+      const palmSpan = wrist && indexKnuckle
+        ? Math.max(1e-4, palmVec.set(
+            indexKnuckle.x - wrist.x,
+            -(indexKnuckle.y - wrist.y),
+            -(indexKnuckle.z - wrist.z),
+          ).length())
+        : 0;
+      rawScale = clamp(
+        baseScale + segmentLength * scaleFactor + palmSpan * palmScaleFactor,
+        minScale,
+        maxScale,
+      );
+    }
 
     const filteredScale = scaleFilter.current!.filter(rawScale, t);
     scaleVec.setScalar(filteredScale);

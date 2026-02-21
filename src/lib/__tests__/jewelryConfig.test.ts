@@ -92,6 +92,10 @@ describe("RING_ANCHOR", () => {
     expect(RING_ANCHOR.directionLandmarks).toEqual([13, 14]);
   });
 
+  it("uses landmarks 13→14 for size span", () => {
+    expect(RING_ANCHOR.sizeSpanLandmarks).toEqual([13, 14]);
+  });
+
   it("has all landmark indices in valid range (0–20)", () => {
     const allIndices = [...RING_ANCHOR.anchorLandmarks, ...RING_ANCHOR.directionLandmarks, ...RING_ANCHOR.depthReferenceLandmarks];
     for (const idx of allIndices) {
@@ -107,6 +111,11 @@ describe("RING_ANCHOR", () => {
   it("has zero axial offset for rings", () => {
     expect(RING_ANCHOR.axialOffset).toBe(0);
   });
+
+  it("has a default diameter and size range", () => {
+    expect(RING_ANCHOR.defaultDiameterMm).toBeGreaterThan(0);
+    expect(RING_ANCHOR.sizeRangeMm.min).toBeLessThan(RING_ANCHOR.sizeRangeMm.max);
+  });
 });
 
 describe("BRACELET_ANCHOR", () => {
@@ -116,6 +125,10 @@ describe("BRACELET_ANCHOR", () => {
 
   it("uses landmarks 0→9 for direction (wrist → middle finger MCP)", () => {
     expect(BRACELET_ANCHOR.directionLandmarks).toEqual([0, 9]);
+  });
+
+  it("uses landmarks 0→5 for size span", () => {
+    expect(BRACELET_ANCHOR.sizeSpanLandmarks).toEqual([0, 5]);
   });
 
   it("has all landmark indices in valid range (0–20)", () => {
@@ -142,6 +155,11 @@ describe("BRACELET_ANCHOR", () => {
 
   it("has larger surface offset than ring (wrist is thicker)", () => {
     expect(BRACELET_ANCHOR.surfaceOffset).toBeGreaterThan(RING_ANCHOR.surfaceOffset);
+  });
+
+  it("has a default diameter and size range", () => {
+    expect(BRACELET_ANCHOR.defaultDiameterMm).toBeGreaterThan(0);
+    expect(BRACELET_ANCHOR.sizeRangeMm.min).toBeLessThan(BRACELET_ANCHOR.sizeRangeMm.max);
   });
 });
 

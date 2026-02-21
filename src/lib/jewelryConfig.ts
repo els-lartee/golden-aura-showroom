@@ -40,8 +40,14 @@ export interface JewelryAnchorConfig {
   anchorLandmarks: number[];
   /** Landmark pair [from, to] defining the orientation / direction axis. */
   directionLandmarks: [number, number];
+  /** Landmark pair [from, to] defining the segment used for size calibration. */
+  sizeSpanLandmarks: [number, number];
   /** Landmark pair [a, b] used for depth estimation (physical vs projected size). */
   depthReferenceLandmarks: [number, number];
+  /** Default inner diameter in millimeters for the model. */
+  defaultDiameterMm: number;
+  /** Allowed size range in millimeters for user input. */
+  sizeRangeMm: { min: number; max: number };
   /** Base scale added before landmark-based scaling. */
   baseScale: number;
   /** Multiplier for the primary segment length (finger or wrist-to-palm). */
@@ -62,7 +68,10 @@ export interface JewelryAnchorConfig {
 export const RING_ANCHOR: JewelryAnchorConfig = {
   anchorLandmarks: [13, 14],
   directionLandmarks: [13, 14],
+  sizeSpanLandmarks: [13, 14],
   depthReferenceLandmarks: [0, 5],
+  defaultDiameterMm: 18,
+  sizeRangeMm: { min: 14, max: 24 },
   baseScale: 0.1,
   scaleFactor: 2.6,
   palmScaleFactor: 2,
@@ -76,7 +85,10 @@ export const RING_ANCHOR: JewelryAnchorConfig = {
 export const BRACELET_ANCHOR: JewelryAnchorConfig = {
   anchorLandmarks: [0],
   directionLandmarks: [0, 9],
+  sizeSpanLandmarks: [0, 5],
   depthReferenceLandmarks: [0, 5],
+  defaultDiameterMm: 60,
+  sizeRangeMm: { min: 50, max: 80 },
   baseScale: 0.25,
   scaleFactor: 3.0,
   palmScaleFactor: 1.5,
