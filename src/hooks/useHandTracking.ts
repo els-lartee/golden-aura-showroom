@@ -65,6 +65,7 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
   const handednessRef = useRef<HandLabel | null>(null);
   const lastReportedHandRef = useRef<HandLabel | null>(null);
   const fovRef = useRef<number>(50);
+  const videoDimsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const runningRef = useRef(false);
   const stoppedRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
@@ -196,8 +197,15 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
       }
 
       streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
+      const video = videoRef.current;
+      video.srcObject = stream;
+      await video.play();
+
+      videoDimsRef.current = { width: video.videoWidth, height: video.videoHeight };
+      const onVideoResize = () => {
+        videoDimsRef.current = { width: video.videoWidth, height: video.videoHeight };
+      };
+      video.addEventListener("resize", onVideoResize);
 
       // Attempt to read camera FOV from track capabilities/settings
       const videoTrack = stream.getVideoTracks()[0];
@@ -320,6 +328,7 @@ export const useHandTracking = (options: UseHandTrackingOptions = {}) => {
     worldLandmarksRef,
     handednessRef,
     fovRef,
+    videoDimsRef,
     status,
     isModelLoading,
     start,

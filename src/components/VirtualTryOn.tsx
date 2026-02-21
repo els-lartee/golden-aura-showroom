@@ -2,7 +2,7 @@ import { Suspense, useEffect, useState } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Loader2, CameraOff, Hand } from "lucide-react";
 import type { MutableRefObject } from "react";
-import { PerspectiveCamera, ACESFilmicToneMapping } from "three";
+import { OrthographicCamera, ACESFilmicToneMapping } from "three";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -34,13 +34,18 @@ const statusLabel: Record<"idle" | "loading" | "ready" | "running" | "error", st
   error: "Error",
 };
 
-/** Keeps the R3F camera FOV in sync with the value in fovRef (updated by useHandTracking). */
-const CameraFovSync = ({ fovRef }: { fovRef: MutableRefObject<number> }) => {
+/** Syncs the orthographic camera frustum with video pixel dimensions each frame. */
+const OrthoSync = ({ videoDimsRef }: { videoDimsRef: MutableRefObject<{ width: number; height: number }> }) => {
   const { camera } = useThree();
   useFrame(() => {
-    const cam = camera as PerspectiveCamera;
-    if (cam.fov !== fovRef.current) {
-      cam.fov = fovRef.current;
+    const { width, height } = videoDimsRef.current;
+    if (!width || !height) return;
+    const cam = camera as OrthographicCamera;
+    if (cam.right !== width || cam.top !== height) {
+      cam.left = 0;
+      cam.right = width;
+      cam.bottom = 0;
+      cam.top = height;
       cam.updateProjectionMatrix();
     }
   });
@@ -70,12 +75,11 @@ export const VirtualTryOn = ({
   const [handChoice, setHandChoice] = useState<HandPreference>(initialHand);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { videoRef, landmarksRef, worldLandmarksRef, handednessRef, fovRef, status, isModelLoading, start, stop, mirrored } = useHandTracking({
+  const { videoRef, landmarksRef, handednessRef, videoDimsRef, status, isModelLoading, start, stop, mirrored } = useHandTracking({
     preferredHand: handChoice,
     processingSize,
   });
 
-  // AR session analytics — fires start on mount, end on unmount
   useARAnalytics({ productId, modelUrl, active: true });
 
   useEffect(() => {
@@ -107,6 +111,7 @@ export const VirtualTryOn = ({
       />
 
       <Canvas
+        orthographic
         className="absolute inset-0"
         style={mirrored ? { transform: "scaleX(-1)" } : undefined}
         gl={{
@@ -115,20 +120,19 @@ export const VirtualTryOn = ({
           toneMapping: ACESFilmicToneMapping,
           toneMappingExposure: 1.0,
         }}
-        camera={{ position: [0, 0, 2.8], fov: 50 }}
+        camera={{ position: [0, 0, 1000], near: 0.1, far: 2000, zoom: 1 }}
       >
-        <CameraFovSync fovRef={fovRef} />
-        <ambientLight intensity={0.3} />
-        <directionalLight position={[1.2, 1.2, 1.2]} intensity={0.6} />
+        <OrthoSync videoDimsRef={videoDimsRef} />
+        <ambientLight intensity={1.2} />
+        <directionalLight position={[100, -200, 500]} intensity={2.0} />
+        <directionalLight position={[-100, 200, 300]} intensity={0.8} />
         <Environment preset="studio" />
         <Suspense fallback={null}>
-          <HandOcclusionMesh landmarksRef={landmarksRef} />
+          <HandOcclusionMesh landmarksRef={landmarksRef} videoDimsRef={videoDimsRef} />
           <JewelryModel
             modelUrl={modelUrl}
             landmarksRef={landmarksRef}
-            worldLandmarksRef={worldLandmarksRef}
-            handednessRef={handednessRef}
-            fovRef={fovRef}
+            videoDimsRef={videoDimsRef}
             jewelryType={jewelryType}
           />
           <ContactShadows

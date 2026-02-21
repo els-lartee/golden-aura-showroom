@@ -105,6 +105,12 @@ describe("useHandTracking", () => {
     expect(result.current.worldLandmarksRef).toBeDefined();
     expect(result.current.handednessRef).toBeDefined();
     expect(result.current.fovRef).toBeDefined();
+    expect(result.current.videoDimsRef).toBeDefined();
+  });
+
+  it("videoDimsRef defaults to zero dimensions", () => {
+    const { result } = renderHook(() => useHandTracking());
+    expect(result.current.videoDimsRef.current).toEqual({ width: 0, height: 0 });
   });
 
   it("start() transitions pipeline through loading states", async () => {

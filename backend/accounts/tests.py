@@ -70,6 +70,14 @@ class AuthApiTests(APITestCase):
         )
         self.assertEqual(put_response.status_code, 200)
 
+    def test_session_bootstrap_initializes_session_cookie(self) -> None:
+        response = self.client.get("/api/auth/session")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("sessionid", response.cookies)
+        self.assertTrue(response.cookies["sessionid"].value)
+        self.assertIn("session_key", response.data)
+        self.assertEqual(response.data["session_key"], response.cookies["sessionid"].value)
+
 
 class AdminUserApiTests(APITestCase):
     def test_admin_user_list(self) -> None:

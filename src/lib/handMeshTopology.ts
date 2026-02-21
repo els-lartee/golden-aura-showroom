@@ -87,32 +87,30 @@ export const HAND_TRIANGLE_COUNT = HAND_TRIANGLE_INDICES.length / 3;
 /**
  * Convert 21 MediaPipe normalized landmarks into a Float32Array of
  * 3D vertex positions (63 floats = 21 vertices × 3 components)
- * in the same coordinate space used by RingModel.
+ * in pixel-coordinate space matching the orthographic camera setup.
  *
- * The mapping mirrors RingModel's NDC→viewport conversion:
- *   x = (landmark.x − 0.5) × viewport.width
- *   y = −(landmark.y − 0.5) × viewport.height
- *   z = −landmark.z × depthScale
+ * Mapping (same as JewelryModel's lmToPixel):
+ *   x = landmark.x × width
+ *   y = (1 − landmark.y) × height
+ *   z = landmark.z × width
  *
  * @param landmarks  Array of 21 NormalizedLandmark from MediaPipe.
- * @param viewport   `{ width, height }` — the R3F viewport size in world units.
- * @param depthScale Depth multiplier (must match RingModel's depthScale).
+ * @param videoDims  `{ width, height }` — the video pixel dimensions.
  * @returns Float32Array of length 63.
  */
 export const landmarksToPositions = (
   landmarks: NormalizedLandmark[],
-  viewport: { width: number; height: number },
-  depthScale: number = 2,
+  videoDims: { width: number; height: number },
 ): Float32Array => {
   const out = new Float32Array(21 * 3);
-  const { width, height } = viewport;
+  const { width: w, height: h } = videoDims;
 
   for (let i = 0; i < 21; i++) {
     const lm = landmarks[i];
     const base = i * 3;
-    out[base] = (lm.x - 0.5) * width;
-    out[base + 1] = -(lm.y - 0.5) * height;
-    out[base + 2] = -lm.z * depthScale;
+    out[base] = lm.x * w;
+    out[base + 1] = (1.0 - lm.y) * h;
+    out[base + 2] = lm.z * w;
   }
 
   return out;

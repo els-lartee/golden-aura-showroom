@@ -3,22 +3,41 @@ import { m } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
-import { apiClient } from "@/lib/api";
+import { apiClient, ensureSessionKey } from "@/lib/api";
 import { getProductImages } from "@/lib/productAdapters";
 import type { ApiProduct } from "@/lib/types";
 import { useMe } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type Recommendation = { id: number; user: number; product: number; score: string | number };
+type Recommendation = {
+  id: number;
+  user: number | null;
+  session_key?: string | null;
+  product: number;
+  score: string | number;
+};
 
 const RecommendationsStrip = () => {
   const { data: me } = useMe();
   const userId = me?.user?.id;
+  const { data: sessionKey = "" } = useQuery<string>({
+    queryKey: ["session-key"],
+    queryFn: ensureSessionKey,
+    enabled: !userId,
+  });
 
   const { data: recommendations = [] } = useQuery<Recommendation[]>({
-    queryKey: ["recommendations", userId],
-    queryFn: () => apiClient.get<Recommendation[]>("/recommendations/", { user_id: userId }),
-    enabled: Boolean(userId),
+    queryKey: ["recommendations", userId ?? "anonymous", sessionKey],
+    queryFn: async () => {
+      if (userId) {
+        return apiClient.get<Recommendation[]>("/recommendations/");
+      }
+      const activeSessionKey = sessionKey || (await ensureSessionKey());
+      return apiClient.get<Recommendation[]>("/recommendations/", {
+        session_key: activeSessionKey,
+      });
+    },
+    enabled: Boolean(userId || sessionKey),
   });
 
   const { data: recommendedProducts = [], isLoading: isRecommendationsLoading } = useQuery<
@@ -38,18 +57,11 @@ const RecommendationsStrip = () => {
     enabled: recommendations.length > 0,
   });
 
-  const { data: fallbackProducts = [], isLoading: isFallbackLoading } = useQuery<ApiProduct[]>({
-    queryKey: ["catalog-recommendations-fallback"],
-    queryFn: () => apiClient.get<ApiProduct[]>("/products/", { sort: "-is_featured" }),
-    enabled: !userId || recommendations.length === 0,
-  });
-
   const displayProducts = useMemo(() => {
-    const source = recommendedProducts.length ? recommendedProducts : fallbackProducts;
-    return source.slice(0, 3);
-  }, [recommendedProducts, fallbackProducts]);
+    return recommendedProducts.slice(0, 3);
+  }, [recommendedProducts]);
 
-  const isLoading = isRecommendationsLoading || (!recommendedProducts.length && isFallbackLoading);
+  const isLoading = isRecommendationsLoading;
 
   return (
     <section className="mb-12">
@@ -87,7 +99,7 @@ const RecommendationsStrip = () => {
               return (
                 <Link
                   key={product.id}
-                  to={`/products/${product.id}`}
+                  to={`/product/${product.id}`}
                   className="group flex items-center gap-4 border border-background/30 p-4 transition-colors duration-300 hover:border-primary"
                 >
                   <div className="h-16 w-16 overflow-hidden border border-background/30">

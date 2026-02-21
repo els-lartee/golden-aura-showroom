@@ -9,12 +9,12 @@
  * Vertex positions are updated every frame in useFrame().
  *
  * Material setup:
- *  • colorWrite: false  — invisible (no pixels drawn)
- *  • depthWrite: true   — writes to z-buffer
- *  • renderOrder: 0     — renders before the ring (renderOrder 1)
+ *  - colorWrite: false  — invisible (no pixels drawn)
+ *  - depthWrite: true   — writes to z-buffer
+ *  - renderOrder: 0     — renders before the ring (renderOrder 1)
  */
 
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
@@ -30,20 +30,17 @@ import { HAND_TRIANGLE_INDICES, landmarksToPositions } from "@/lib/handMeshTopol
 
 export interface HandOcclusionMeshProps {
   landmarksRef: MutableRefObject<NormalizedLandmark[] | null>;
-  depthScale?: number;
+  videoDimsRef: MutableRefObject<{ width: number; height: number }>;
 }
 
 export const HandOcclusionMesh = ({
   landmarksRef,
-  depthScale = 2,
+  videoDimsRef,
 }: HandOcclusionMeshProps) => {
   const meshRef = useRef<Mesh>(null);
-  const { viewport } = useThree();
 
-  // Build geometry once — positions will be updated per frame
   const geometry = useMemo(() => {
     const geo = new BufferGeometry();
-    // Initial positions (zeroed out — will be set on first visible frame)
     const positions = new Float32BufferAttribute(new Float32Array(21 * 3), 3);
     positions.setUsage(35048); // gl.DYNAMIC_DRAW
     geo.setAttribute("position", positions);
@@ -51,7 +48,6 @@ export const HandOcclusionMesh = ({
     return geo;
   }, []);
 
-  // Depth-only material — invisible but writes to z-buffer
   const material = useMemo(
     () =>
       new MeshBasicMaterial({
@@ -65,16 +61,16 @@ export const HandOcclusionMesh = ({
   useFrame(() => {
     const mesh = meshRef.current;
     const landmarks = landmarksRef.current;
+    const { width, height } = videoDimsRef.current;
 
-    if (!mesh || !landmarks || landmarks.length < 21) {
+    if (!mesh || !landmarks || landmarks.length < 21 || !width || !height) {
       if (mesh) mesh.visible = false;
       return;
     }
 
     mesh.visible = true;
 
-    // Convert landmarks to 3D positions in the same space as RingModel
-    const positions = landmarksToPositions(landmarks, viewport, depthScale);
+    const positions = landmarksToPositions(landmarks, { width, height });
     const attr = geometry.getAttribute("position") as Float32BufferAttribute;
     attr.set(positions);
     attr.needsUpdate = true;

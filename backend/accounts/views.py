@@ -14,6 +14,7 @@ from accounts.serializers import (
     UserProfileSerializer,
     UserSerializer,
 )
+from recommendations.scoring import merge_session_recommendations_into_user
 
 User = get_user_model()
 
@@ -34,9 +35,15 @@ class RegisterView(APIView):
     authentication_classes = []
 
     def post(self, request):
+        pre_auth_session_key = request.session.session_key
+        if not pre_auth_session_key:
+            request.session.save()
+            pre_auth_session_key = request.session.session_key
+
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        merge_session_recommendations_into_user(pre_auth_session_key, user.id)
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
@@ -45,12 +52,18 @@ class LoginView(APIView):
     authentication_classes = []
 
     def post(self, request):
+        pre_auth_session_key = request.session.session_key
+        if not pre_auth_session_key:
+            request.session.save()
+            pre_auth_session_key = request.session.session_key
+
         username = request.data.get("username")
         password = request.data.get("password")
         user = authenticate(request, username=username, password=password)
         if not user:
             return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
         django_login(request, user)
+        merge_session_recommendations_into_user(pre_auth_session_key, user.id)
         return Response(UserSerializer(user).data)
 
 
@@ -88,6 +101,19 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class SessionBootstrapView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        if not request.session.session_key:
+            request.session.save()
+        return Response(
+            {"detail": "Session initialized", "session_key": request.session.session_key}
+        )
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")

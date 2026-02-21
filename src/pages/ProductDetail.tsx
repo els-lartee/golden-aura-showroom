@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 const ARModal = lazy(() => import("@/components/ARModal"));
-import { apiClient } from "@/lib/api";
+import { apiClient, ensureSessionKey } from "@/lib/api";
 import { getProductCategory, getProductImages, getProductModelUrl } from "@/lib/productAdapters";
 import { getProductJewelryType, type JewelryType } from "@/lib/jewelryConfig";
 import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
@@ -104,12 +104,31 @@ const ProductDetail = () => {
 
   const isFavorite = product ? favoriteIds.has(product.id) : false;
 
-  type Recommendation = { id: number; user: number; product: number; score: string | number };
+  type Recommendation = {
+    id: number;
+    user: number | null;
+    session_key?: string | null;
+    product: number;
+    score: string | number;
+  };
+  const { data: sessionKey = "" } = useQuery<string>({
+    queryKey: ["session-key"],
+    queryFn: ensureSessionKey,
+    enabled: !me?.user?.id,
+  });
 
   const { data: recommendations = [] } = useQuery<Recommendation[]>({
-    queryKey: ["recommendations", me?.user?.id],
-    queryFn: () => apiClient.get<Recommendation[]>("/recommendations/", { user_id: me?.user?.id }),
-    enabled: Boolean(me?.user?.id),
+    queryKey: ["recommendations", me?.user?.id ?? "anonymous", sessionKey],
+    queryFn: async () => {
+      if (me?.user?.id) {
+        return apiClient.get<Recommendation[]>("/recommendations/");
+      }
+      const activeSessionKey = sessionKey || (await ensureSessionKey());
+      return apiClient.get<Recommendation[]>("/recommendations/", {
+        session_key: activeSessionKey,
+      });
+    },
+    enabled: Boolean(me?.user?.id || sessionKey),
   });
 
   const { data: recommendedProducts = [], isLoading: isRecommendationsLoading } = useQuery<
@@ -132,19 +151,7 @@ const ProductDetail = () => {
     enabled: recommendations.length > 0,
   });
 
-  const { data: collectionRecommendedProducts = [] } = useQuery<ApiProduct[]>({
-    queryKey: ["recommended-collection", product?.collections?.[0]],
-    queryFn: () =>
-      apiClient.get<ApiProduct[]>("/products/", {
-        collection: product?.collections?.[0],
-        sort: "-is_featured",
-      }),
-    enabled: Boolean(product?.collections?.length),
-  });
-
-  const activeRecommended = recommendedProducts.length
-    ? recommendedProducts
-    : collectionRecommendedProducts;
+  const activeRecommended = recommendedProducts;
 
   const filteredActiveRecommended = activeRecommended
     .filter((item) => String(item.id) !== id)

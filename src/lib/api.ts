@@ -10,6 +10,23 @@ type ApiError = {
 
 let csrfTokenCache = "";
 
+export const getCookieValue = (name: string) => {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.match(new RegExp(`(^|;\\s*)${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[2]) : "";
+};
+
+export const getSessionKey = () => getCookieValue("sessionid");
+
+export const ensureSessionKey = async () => {
+  const existingSessionKey = getSessionKey();
+  if (existingSessionKey) return existingSessionKey;
+  const data = await apiFetch<{ detail: string; session_key?: string }>("/auth/session", {
+    method: "GET",
+  });
+  return data.session_key || getSessionKey();
+};
+
 /**
  * Extract a human-readable message from a DRF error response body.
  * DRF returns errors in several shapes:
@@ -81,9 +98,7 @@ const buildUrl = (path: string, params?: Record<string, string | number | undefi
 };
 
 const getCsrfToken = () => {
-  if (typeof document === "undefined") return "";
-  const match = document.cookie.match(/(^|;\s*)csrftoken=([^;]+)/);
-  return match ? decodeURIComponent(match[2]) : "";
+  return getCookieValue("csrftoken");
 };
 
 const ensureCsrfCookie = async () => {

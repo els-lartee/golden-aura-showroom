@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api";
+import { apiClient, getSessionKey } from "@/lib/api";
 
 export type AnalyticsEventType =
   | "view"
@@ -19,7 +19,15 @@ export type AnalyticsEventPayload = {
 
 export const analyticsApi = {
   trackEvent: (payload: AnalyticsEventPayload) =>
-    apiClient.post<{ id: number }>("/events/", payload),
+    apiClient.post<{ id: number }>("/events/", {
+      ...payload,
+      ...(payload.user ? {} : { session_key: payload.session_key || getSessionKey() }),
+    }),
   trackBatch: (events: AnalyticsEventPayload[]) =>
-    apiClient.post<{ created: number }>("/events/batch", { events }),
+    apiClient.post<{ created: number }>("/events/batch", {
+      events: events.map((event) => ({
+        ...event,
+        ...(event.user ? {} : { session_key: event.session_key || getSessionKey() }),
+      })),
+    }),
 };

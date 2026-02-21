@@ -49,52 +49,51 @@ describe("landmarksToPositions", () => {
       z: (i * 0.01),
     }));
 
-  const viewport = { width: 10, height: 8 };
+  const videoDims = { width: 1280, height: 960 };
 
   it("returns a Float32Array of length 63", () => {
-    const result = landmarksToPositions(makeLandmarks(), viewport);
+    const result = landmarksToPositions(makeLandmarks(), videoDims);
     expect(result).toBeInstanceOf(Float32Array);
     expect(result.length).toBe(63);
   });
 
-  it("maps landmark 0 at (0, 0, 0) to (-width/2, height/2, 0)", () => {
+  it("maps landmark 0 at (0, 0, 0) to (0, height, 0) in pixel coords", () => {
     const lms = makeLandmarks();
     lms[0] = { x: 0, y: 0, z: 0 };
-    const pos = landmarksToPositions(lms, viewport);
-    expect(pos[0]).toBeCloseTo(-viewport.width / 2); // x: (0-0.5)*10 = -5
-    expect(pos[1]).toBeCloseTo(viewport.height / 2);  // y: -(0-0.5)*8 = 4
-    expect(pos[2]).toBeCloseTo(0);                     // z: -0*2 = 0
+    const pos = landmarksToPositions(lms, videoDims);
+    expect(pos[0]).toBeCloseTo(0);
+    expect(pos[1]).toBeCloseTo(videoDims.height);
+    expect(pos[2]).toBeCloseTo(0);
   });
 
-  it("maps landmark at (0.5, 0.5, 0) to origin (0, 0, 0)", () => {
+  it("maps landmark at (0.5, 0.5, 0) to center of video", () => {
     const lms = makeLandmarks();
     lms[3] = { x: 0.5, y: 0.5, z: 0 };
-    const pos = landmarksToPositions(lms, viewport);
-    const base = 3 * 3; // landmark index 3
-    expect(pos[base]).toBeCloseTo(0);
-    expect(pos[base + 1]).toBeCloseTo(0);
+    const pos = landmarksToPositions(lms, videoDims);
+    const base = 3 * 3;
+    expect(pos[base]).toBeCloseTo(videoDims.width / 2);
+    expect(pos[base + 1]).toBeCloseTo(videoDims.height / 2);
     expect(pos[base + 2]).toBeCloseTo(0);
   });
 
-  it("applies depth scale correctly", () => {
+  it("z component scales by video width", () => {
     const lms = makeLandmarks();
     lms[0] = { x: 0.5, y: 0.5, z: 0.1 };
-    const depthScale = 5;
-    const pos = landmarksToPositions(lms, viewport, depthScale);
-    // z = -0.1 * 5 = -0.5
-    expect(pos[2]).toBeCloseTo(-0.5);
+    const pos = landmarksToPositions(lms, videoDims);
+    expect(pos[2]).toBeCloseTo(0.1 * videoDims.width);
   });
 
-  it("uses default depthScale of 2 when not specified", () => {
+  it("maps (1, 1, 0) to (width, 0, 0)", () => {
     const lms = makeLandmarks();
-    lms[0] = { x: 0.5, y: 0.5, z: 0.1 };
-    const pos = landmarksToPositions(lms, viewport);
-    // z = -0.1 * 2 = -0.2
-    expect(pos[2]).toBeCloseTo(-0.2);
+    lms[0] = { x: 1, y: 1, z: 0 };
+    const pos = landmarksToPositions(lms, videoDims);
+    expect(pos[0]).toBeCloseTo(videoDims.width);
+    expect(pos[1]).toBeCloseTo(0);
+    expect(pos[2]).toBeCloseTo(0);
   });
 
   it("all output values are finite numbers", () => {
-    const pos = landmarksToPositions(makeLandmarks(), viewport);
+    const pos = landmarksToPositions(makeLandmarks(), videoDims);
     for (let i = 0; i < pos.length; i++) {
       expect(Number.isFinite(pos[i])).toBe(true);
     }
