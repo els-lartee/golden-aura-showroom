@@ -3,7 +3,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient, APITestCase
 
 from analytics.models import Event
-from catalog.models import Product
+from catalog.models import Product, Tag
 from recommendations.models import Recommendation
 from recommendations.scoring import (
     merge_session_recommendations_into_user,
@@ -128,6 +128,43 @@ class RecommendationsApiTests(APITestCase):
 
 
 class RecommendationScoringTests(TestCase):
+    def test_click_event_scores_tag_similar_products(self) -> None:
+        user = get_user_model().objects.create_user(
+            username="tagsim", email="tagsim@example.com", password="pass1234"
+        )
+        shared_tag = Tag.objects.create(name="Gold", slug="gold")
+
+        clicked_product = Product.objects.create(
+            title="Clicked Ring",
+            slug="clicked-ring",
+            base_price="12000.00",
+            currency="NGN",
+        )
+        clicked_product.tags.add(shared_tag)
+
+        similar_product = Product.objects.create(
+            title="Similar Ring",
+            slug="similar-ring",
+            base_price="11000.00",
+            currency="NGN",
+        )
+        similar_product.tags.add(shared_tag)
+
+        event = Event.objects.create(
+            user=user,
+            product=clicked_product,
+            event_type=Event.EventType.CLICK,
+            metadata={},
+        )
+
+        update_recommendation_from_event(event)
+
+        self.assertTrue(
+            Recommendation.objects.filter(user=user, product=clicked_product).exists()
+        )
+        similar_rec = Recommendation.objects.get(user=user, product=similar_product)
+        self.assertGreater(similar_rec.score, 0)
+
     def test_ar_session_start_increases_score(self) -> None:
         user = get_user_model().objects.create_user(
             username="arstart", email="arstart@example.com", password="pass1234"

@@ -69,6 +69,19 @@ def _trim_recommendations(owner_filters: dict[str, Any]) -> None:
     Recommendation.objects.filter(**owner_filters).exclude(id__in=ids_to_keep).delete()
 
 
+def _increment_recommendation_score(
+    owner_filters: dict[str, Any], product_id: int, score_delta: float
+) -> None:
+    recommendation, _ = Recommendation.objects.get_or_create(
+        product_id=product_id,
+        defaults={"model_version": "heuristic-v1", **owner_filters},
+        **owner_filters,
+    )
+    recommendation.score = (recommendation.score or 0) + score_delta
+    recommendation.model_version = "heuristic-v1"
+    recommendation.save(update_fields=["score", "model_version"])
+
+
 def update_recommendation_from_event(event: Event) -> None:
     if not event.product_id:
         return
@@ -86,14 +99,21 @@ def update_recommendation_from_event(event: Event) -> None:
     base_weight = EVENT_WEIGHTS.get(event.event_type, 1.0)
     score_delta = base_weight * _duration_boost(event.metadata) * _decay_factor(event.created_at)
 
-    recommendation, _ = Recommendation.objects.get_or_create(
-        product_id=event.product_id,
-        defaults={"model_version": "heuristic-v1", **owner_filters},
-        **owner_filters,
+    _increment_recommendation_score(owner_filters, event.product_id, score_delta)
+
+    event_tag_ids = list(
+        Product.objects.filter(id=event.product_id).values_list("tags__id", flat=True)
     )
-    recommendation.score = (recommendation.score or 0) + score_delta
-    recommendation.model_version = "heuristic-v1"
-    recommendation.save(update_fields=["score", "model_version"])
+    event_tag_ids = [tag_id for tag_id in event_tag_ids if tag_id is not None]
+    if event_tag_ids:
+        event_tag_set = set(event_tag_ids)
+        tagged_products = Product.objects.filter(tags__in=event_tag_set).prefetch_related("tags").distinct()
+        for product in tagged_products:
+            shared_tag_count = sum(1 for tag in product.tags.all() if tag.id in event_tag_set)
+            if not shared_tag_count:
+                continue
+            similarity_delta = shared_tag_count * score_delta * TAG_SIMILARITY_WEIGHT
+            _increment_recommendation_score(owner_filters, product.id, similarity_delta)
 
     _trim_recommendations(owner_filters)
 
