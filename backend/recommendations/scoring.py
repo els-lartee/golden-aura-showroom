@@ -27,6 +27,7 @@ EVENT_WEIGHTS = {
 DECAY_DAYS = 7
 MAX_RECOMMENDATIONS_PER_USER = 50
 TAG_SIMILARITY_WEIGHT = 0.5
+CATEGORY_TAG_MATCH_MULTIPLIER = 1.5
 AR_MIN_ENGAGED_SECONDS = getattr(settings, "AR_MIN_ENGAGED_SECONDS", 20)
 
 
@@ -43,7 +44,11 @@ def _duration_boost(metadata: dict) -> float:
         seconds = float(seconds)
     except (TypeError, ValueError):
         return 1.0
-    return min(1.0 + seconds / 30.0, 2.0)
+    if seconds <= 0:
+        return 1.0
+    # Keep dwell-time influence meaningful for longer sessions while capping extremes.
+    bounded_seconds = min(seconds, 900.0)
+    return 1.0 + bounded_seconds / 120.0
 
 
 def _get_duration_seconds(metadata: dict) -> float:
@@ -101,10 +106,9 @@ def update_recommendation_from_event(event: Event) -> None:
 
     _increment_recommendation_score(owner_filters, event.product_id, score_delta)
 
-    event_tag_ids = list(
-        Product.objects.filter(id=event.product_id).values_list("tags__id", flat=True)
-    )
-    event_tag_ids = [tag_id for tag_id in event_tag_ids if tag_id is not None]
+    source_product = Product.objects.filter(id=event.product_id).first()
+    source_category_id = source_product.category_id if source_product else None
+    event_tag_ids = list(source_product.tags.values_list("id", flat=True)) if source_product else []
     if event_tag_ids:
         event_tag_set = set(event_tag_ids)
         tagged_products = Product.objects.filter(tags__in=event_tag_set).prefetch_related("tags").distinct()
@@ -112,7 +116,17 @@ def update_recommendation_from_event(event: Event) -> None:
             shared_tag_count = sum(1 for tag in product.tags.all() if tag.id in event_tag_set)
             if not shared_tag_count:
                 continue
-            similarity_delta = shared_tag_count * score_delta * TAG_SIMILARITY_WEIGHT
+            category_multiplier = (
+                CATEGORY_TAG_MATCH_MULTIPLIER
+                if source_category_id and product.category_id == source_category_id
+                else 1.0
+            )
+            similarity_delta = (
+                shared_tag_count
+                * score_delta
+                * TAG_SIMILARITY_WEIGHT
+                * category_multiplier
+            )
             _increment_recommendation_score(owner_filters, product.id, similarity_delta)
 
     _trim_recommendations(owner_filters)
@@ -131,6 +145,7 @@ def rebuild_recommendations_for_user(user_id: int) -> None:
 
     scores: dict[int, float] = {}
     tag_weights: dict[int, float] = {}
+    category_weights: dict[int, float] = {}
     for event in events:
         if not _should_score_event(event):
             continue
@@ -143,6 +158,10 @@ def rebuild_recommendations_for_user(user_id: int) -> None:
         if event.product_id and event.product:
             for tag in event.product.tags.all():
                 tag_weights[tag.id] = tag_weights.get(tag.id, 0.0) + score_delta
+            if event.product.category_id:
+                category_weights[event.product.category_id] = (
+                    category_weights.get(event.product.category_id, 0.0) + score_delta
+                )
 
     if tag_weights:
         tag_ids = list(tag_weights.keys())
@@ -150,7 +169,14 @@ def rebuild_recommendations_for_user(user_id: int) -> None:
         for product in tagged_products:
             tag_score = sum(tag_weights.get(tag.id, 0.0) for tag in product.tags.all())
             if tag_score:
-                scores[product.id] = scores.get(product.id, 0.0) + tag_score * TAG_SIMILARITY_WEIGHT
+                category_multiplier = (
+                    CATEGORY_TAG_MATCH_MULTIPLIER
+                    if product.category_id and category_weights.get(product.category_id)
+                    else 1.0
+                )
+                scores[product.id] = scores.get(product.id, 0.0) + (
+                    tag_score * TAG_SIMILARITY_WEIGHT * category_multiplier
+                )
 
     Recommendation.objects.filter(user_id=user_id).delete()
     recommendations = [
@@ -184,6 +210,7 @@ def rebuild_recommendations_for_session(session_key: str) -> None:
 
     scores: dict[int, float] = {}
     tag_weights: dict[int, float] = {}
+    category_weights: dict[int, float] = {}
     for event in events:
         if event.user_id or not _should_score_event(event):
             continue
@@ -197,6 +224,10 @@ def rebuild_recommendations_for_session(session_key: str) -> None:
         if event.product:
             for tag in event.product.tags.all():
                 tag_weights[tag.id] = tag_weights.get(tag.id, 0.0) + score_delta
+            if event.product.category_id:
+                category_weights[event.product.category_id] = (
+                    category_weights.get(event.product.category_id, 0.0) + score_delta
+                )
 
     if tag_weights:
         tag_ids = list(tag_weights.keys())
@@ -204,7 +235,14 @@ def rebuild_recommendations_for_session(session_key: str) -> None:
         for product in tagged_products:
             tag_score = sum(tag_weights.get(tag.id, 0.0) for tag in product.tags.all())
             if tag_score:
-                scores[product.id] = scores.get(product.id, 0.0) + tag_score * TAG_SIMILARITY_WEIGHT
+                category_multiplier = (
+                    CATEGORY_TAG_MATCH_MULTIPLIER
+                    if product.category_id and category_weights.get(product.category_id)
+                    else 1.0
+                )
+                scores[product.id] = scores.get(product.id, 0.0) + (
+                    tag_score * TAG_SIMILARITY_WEIGHT * category_multiplier
+                )
 
     Recommendation.objects.filter(session_key=session_key, user__isnull=True).delete()
     recommendations = [

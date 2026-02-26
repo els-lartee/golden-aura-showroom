@@ -3,7 +3,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient, APITestCase
 
 from analytics.models import Event
-from catalog.models import Product, Tag
+from catalog.models import Category, Product, Tag
 from recommendations.models import Recommendation
 from recommendations.scoring import (
     merge_session_recommendations_into_user,
@@ -128,27 +128,40 @@ class RecommendationsApiTests(APITestCase):
 
 
 class RecommendationScoringTests(TestCase):
-    def test_click_event_scores_tag_similar_products(self) -> None:
+    def test_click_event_prioritizes_same_category_when_tags_match(self) -> None:
         user = get_user_model().objects.create_user(
             username="tagsim", email="tagsim@example.com", password="pass1234"
         )
         shared_tag = Tag.objects.create(name="Gold", slug="gold")
+        ring_category = Category.objects.create(name="Rings", slug="rings")
+        bracelet_category = Category.objects.create(name="Bracelets", slug="bracelets")
 
         clicked_product = Product.objects.create(
             title="Clicked Ring",
             slug="clicked-ring",
             base_price="12000.00",
             currency="NGN",
+            category=ring_category,
         )
         clicked_product.tags.add(shared_tag)
 
-        similar_product = Product.objects.create(
+        same_category_product = Product.objects.create(
             title="Similar Ring",
             slug="similar-ring",
             base_price="11000.00",
             currency="NGN",
+            category=ring_category,
         )
-        similar_product.tags.add(shared_tag)
+        same_category_product.tags.add(shared_tag)
+
+        different_category_product = Product.objects.create(
+            title="Gold Bracelet",
+            slug="gold-bracelet",
+            base_price="11000.00",
+            currency="NGN",
+            category=bracelet_category,
+        )
+        different_category_product.tags.add(shared_tag)
 
         event = Event.objects.create(
             user=user,
@@ -162,8 +175,49 @@ class RecommendationScoringTests(TestCase):
         self.assertTrue(
             Recommendation.objects.filter(user=user, product=clicked_product).exists()
         )
-        similar_rec = Recommendation.objects.get(user=user, product=similar_product)
-        self.assertGreater(similar_rec.score, 0)
+        same_category_rec = Recommendation.objects.get(user=user, product=same_category_product)
+        different_category_rec = Recommendation.objects.get(
+            user=user, product=different_category_product
+        )
+        self.assertGreater(same_category_rec.score, different_category_rec.score)
+
+    def test_dwell_time_increases_preference_weight(self) -> None:
+        user = get_user_model().objects.create_user(
+            username="dwelluser", email="dwell@example.com", password="pass1234"
+        )
+
+        long_dwell_product = Product.objects.create(
+            title="Gold Ring",
+            slug="gold-ring",
+            base_price="15000.00",
+            currency="NGN",
+        )
+        short_dwell_product = Product.objects.create(
+            title="Silver Ring",
+            slug="silver-ring",
+            base_price="15000.00",
+            currency="NGN",
+        )
+
+        long_dwell_event = Event.objects.create(
+            user=user,
+            product=long_dwell_product,
+            event_type=Event.EventType.VIEW,
+            metadata={"seconds": 300},
+        )
+        short_dwell_event = Event.objects.create(
+            user=user,
+            product=short_dwell_product,
+            event_type=Event.EventType.VIEW,
+            metadata={"seconds": 30},
+        )
+
+        update_recommendation_from_event(long_dwell_event)
+        update_recommendation_from_event(short_dwell_event)
+
+        long_dwell_rec = Recommendation.objects.get(user=user, product=long_dwell_product)
+        short_dwell_rec = Recommendation.objects.get(user=user, product=short_dwell_product)
+        self.assertGreater(long_dwell_rec.score, short_dwell_rec.score)
 
     def test_ar_session_start_increases_score(self) -> None:
         user = get_user_model().objects.create_user(
