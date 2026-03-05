@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from rest_framework import permissions, status, viewsets
@@ -10,11 +12,40 @@ from analytics.models import Event
 from analytics.serializers import EventSerializer
 from orders.models import Order
 from payments.models import Payment
+from recommendations.scoring import update_recommendation_from_event, mark_user_dirty
+
+logger = logging.getLogger(__name__)
+
+
+def _ensure_session_key(request) -> str:
+    session_key = request.session.session_key
+    if not session_key:
+        request.session.save()
+        session_key = request.session.session_key
+    return session_key
+
+
+def _trigger_recommendations(events):
+    """Fire real-time scoring for a list of saved Event instances."""
+    for event in events:
+        try:
+            update_recommendation_from_event(event)
+            if event.user_id:
+                mark_user_dirty(event.user_id)
+        except Exception:
+            logger.exception("Failed to update recommendation for event %s", event.pk)
 
 
 class EventViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all()
     serializer_class = EventSerializer
+
+    def perform_create(self, serializer):
+        event = serializer.save(
+            user=self.request.user if self.request.user.is_authenticated else None,
+            session_key=_ensure_session_key(self.request),
+        )
+        _trigger_recommendations([event])
 
 
 class EventBatchView(APIView):
@@ -24,7 +55,11 @@ class EventBatchView(APIView):
         events = request.data.get("events", [])
         serializer = EventSerializer(data=events, many=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        saved_events = serializer.save(
+            user=request.user if request.user.is_authenticated else None,
+            session_key=_ensure_session_key(request),
+        )
+        _trigger_recommendations(saved_events)
         return Response({"created": len(serializer.data)}, status=status.HTTP_201_CREATED)
 
 

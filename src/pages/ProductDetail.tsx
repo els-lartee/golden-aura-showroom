@@ -4,9 +4,10 @@ import { m } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import ARModal from "@/components/ARModal";
-import { apiClient } from "@/lib/api";
+const ARModal = lazy(() => import("@/components/ARModal"));
+import { apiClient, ensureSessionKey } from "@/lib/api";
 import { getProductCategory, getProductImages, getProductModelUrl } from "@/lib/productAdapters";
+import { getProductJewelryType, type JewelryType } from "@/lib/jewelryConfig";
 import type { ApiCategory, ApiCollection, ApiProduct, ApiTag } from "@/lib/types";
 import { useAddToCart, useCart } from "@/hooks/useCart";
 import { useMe } from "@/hooks/useAuth";
@@ -53,6 +54,8 @@ const ProductDetail = () => {
   const [isTryOnOpen, setIsTryOnOpen] = useState(false);
   const [activeProductName, setActiveProductName] = useState<string | null>(null);
   const [activeModelUrl, setActiveModelUrl] = useState<string | null>(null);
+  const [activeProductId, setActiveProductId] = useState<number | null>(null);
+  const [activeJewelryType, setActiveJewelryType] = useState<JewelryType | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string>("");
   const { data: cart } = useCart();
   const addToCart = useAddToCart();
@@ -101,12 +104,31 @@ const ProductDetail = () => {
 
   const isFavorite = product ? favoriteIds.has(product.id) : false;
 
-  type Recommendation = { id: number; user: number; product: number; score: string | number };
+  type Recommendation = {
+    id: number;
+    user: number | null;
+    session_key?: string | null;
+    product: number;
+    score: string | number;
+  };
+  const { data: sessionKey = "" } = useQuery<string>({
+    queryKey: ["session-key"],
+    queryFn: ensureSessionKey,
+    enabled: !me?.user?.id,
+  });
 
   const { data: recommendations = [] } = useQuery<Recommendation[]>({
-    queryKey: ["recommendations", me?.user?.id],
-    queryFn: () => apiClient.get<Recommendation[]>("/recommendations/", { user_id: me?.user?.id }),
-    enabled: Boolean(me?.user?.id),
+    queryKey: ["recommendations", me?.user?.id ?? "anonymous", sessionKey],
+    queryFn: async () => {
+      if (me?.user?.id) {
+        return apiClient.get<Recommendation[]>("/recommendations/");
+      }
+      const activeSessionKey = sessionKey || (await ensureSessionKey());
+      return apiClient.get<Recommendation[]>("/recommendations/", {
+        session_key: activeSessionKey,
+      });
+    },
+    enabled: Boolean(me?.user?.id || sessionKey),
   });
 
   const { data: recommendedProducts = [], isLoading: isRecommendationsLoading } = useQuery<
@@ -119,27 +141,17 @@ const ProductDetail = () => {
         .map((rec) => rec.product)
         .filter(Boolean)
         .slice(0, 8);
-      const products = await Promise.all(
+      const results = await Promise.allSettled(
         productIds.map((productId) => apiClient.get<ApiProduct>(`/products/${productId}/`))
       );
-      return products;
+      return results
+        .filter((r): r is PromiseFulfilledResult<ApiProduct> => r.status === "fulfilled")
+        .map((r) => r.value);
     },
     enabled: recommendations.length > 0,
   });
 
-  const { data: collectionRecommendedProducts = [] } = useQuery<ApiProduct[]>({
-    queryKey: ["recommended-collection", product?.collections?.[0]],
-    queryFn: () =>
-      apiClient.get<ApiProduct[]>("/products/", {
-        collection: product?.collections?.[0],
-        sort: "-is_featured",
-      }),
-    enabled: Boolean(product?.collections?.length),
-  });
-
-  const activeRecommended = recommendedProducts.length
-    ? recommendedProducts
-    : collectionRecommendedProducts;
+  const activeRecommended = recommendedProducts;
 
   const filteredActiveRecommended = activeRecommended
     .filter((item) => String(item.id) !== id)
@@ -175,6 +187,8 @@ const ProductDetail = () => {
       }
       setActiveProductName(product.title);
       setActiveModelUrl(modelUrl);
+      setActiveProductId(product.id);
+      setActiveJewelryType(getProductJewelryType(product, categories) ?? "ring");
       setIsTryOnOpen(true);
     }
   };
@@ -226,6 +240,8 @@ const ProductDetail = () => {
       }
       setActiveProductName(productData.title);
       setActiveModelUrl(modelUrl);
+      setActiveProductId(productData.id);
+      setActiveJewelryType(getProductJewelryType(productData, categories) ?? "ring");
       setIsTryOnOpen(true);
     }
   };
@@ -361,15 +377,29 @@ const ProductDetail = () => {
       <Footer />
 
       {/* AR Modal - Rendered via Portal */}
-      <ARModal
-        isOpen={isTryOnOpen}
-        modelUrl={activeModelUrl}
-        productName={activeProductName}
-        onClose={() => {
-          setIsTryOnOpen(false);
-          setActiveModelUrl(null);
-        }}
-      />
+      {isTryOnOpen && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center text-white">
+              <span className="text-sm uppercase tracking-[0.2em]">Loading AR...</span>
+            </div>
+          }
+        >
+          <ARModal
+            isOpen={isTryOnOpen}
+            modelUrl={activeModelUrl}
+            productName={activeProductName}
+            productId={activeProductId}
+            jewelryType={activeJewelryType ?? undefined}
+            onClose={() => {
+              setIsTryOnOpen(false);
+              setActiveModelUrl(null);
+              setActiveProductId(null);
+              setActiveJewelryType(null);
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

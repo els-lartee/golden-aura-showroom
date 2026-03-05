@@ -1,6 +1,6 @@
 import type { ApiCategory, ApiCollection, ApiProduct, ApiProductMedia } from "@/lib/types";
 
-const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api").replace(/\/api\/?$/, "");
+const BACKEND_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/api\/?$/, "");
 
 /**
  * Resolve a media URL that may be a relative backend path (e.g. /assets/...)

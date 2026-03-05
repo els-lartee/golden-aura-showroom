@@ -122,3 +122,114 @@ class AnalyticsApiTests(APITestCase):
         list_response = self.client.get("/api/recent-views")
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(list_response.data, [])
+
+    # ── AR Analytics Tests ─────────────────────────────────────
+
+    def test_create_ar_session_start_event(self) -> None:
+        """Creating an Event with event_type='ar_session_start' succeeds."""
+        from analytics.models import Event
+
+        product = Product.objects.create(
+            title="AR Ring",
+            slug="ar-ring",
+            base_price="25000.00",
+            currency="NGN",
+        )
+        event = Event.objects.create(
+            event_type="ar_session_start",
+            product=product,
+            metadata={"model_url": "/models/ar-ring.glb"},
+        )
+        self.assertEqual(event.event_type, "ar_session_start")
+        self.assertEqual(event.metadata["model_url"], "/models/ar-ring.glb")
+
+    def test_create_ar_session_end_event_with_duration(self) -> None:
+        """Creating an Event with event_type='ar_session_end' and duration metadata succeeds."""
+        from analytics.models import Event
+
+        product = Product.objects.create(
+            title="AR Pendant",
+            slug="ar-pendant",
+            base_price="30000.00",
+            currency="NGN",
+        )
+        event = Event.objects.create(
+            event_type="ar_session_end",
+            product=product,
+            metadata={"duration_seconds": 45},
+        )
+        self.assertEqual(event.event_type, "ar_session_end")
+        self.assertEqual(event.metadata["duration_seconds"], 45)
+
+    def test_api_accepts_ar_session_start(self) -> None:
+        """POST /api/events/ accepts ar_session_start event type and returns 201."""
+        product = Product.objects.create(
+            title="Try-On Ring",
+            slug="try-on-ring",
+            base_price="18000.00",
+            currency="NGN",
+        )
+        response = self.client.post(
+            "/api/events/",
+            {
+                "event_type": "ar_session_start",
+                "product": product.id,
+                "metadata": {"model_url": "/models/try-on-ring.glb"},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["event_type"], "ar_session_start")
+
+    def test_api_accepts_ar_session_end(self) -> None:
+        """POST /api/events/ accepts ar_session_end event type and returns 201."""
+        product = Product.objects.create(
+            title="Session Ring",
+            slug="session-ring",
+            base_price="22000.00",
+            currency="NGN",
+        )
+        response = self.client.post(
+            "/api/events/",
+            {
+                "event_type": "ar_session_end",
+                "product": product.id,
+                "metadata": {"duration_seconds": 30},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["metadata"]["duration_seconds"], 30)
+
+    def test_api_accepts_ar_screenshot(self) -> None:
+        """POST /api/events/ accepts ar_screenshot event type and returns 201."""
+        product = Product.objects.create(
+            title="Screenshot Ring",
+            slug="screenshot-ring",
+            base_price="15000.00",
+            currency="NGN",
+        )
+        response = self.client.post(
+            "/api/events/",
+            {
+                "event_type": "ar_screenshot",
+                "product": product.id,
+                "metadata": {},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["event_type"], "ar_screenshot")
+
+    def test_ar_event_without_product(self) -> None:
+        """AR session events can be created without a product (product is optional)."""
+        response = self.client.post(
+            "/api/events/",
+            {
+                "event_type": "ar_session_start",
+                "metadata": {"source": "homepage_try_on"},
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIsNone(response.data["product"])

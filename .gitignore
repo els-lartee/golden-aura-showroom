@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+
+backend/golden_aura/static/*
+backend/golden_aura/assets/*

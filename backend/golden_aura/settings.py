@@ -1,6 +1,9 @@
 from pathlib import Path
 import os
 import sys
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -103,9 +106,12 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = '/static/'
+STATIC_ROOT = '/var/www/golden-aura/static'
+
+
 MEDIA_URL = "/assets/"
-MEDIA_ROOT = BASE_DIR / "assets"
+MEDIA_ROOT = '/var/www/golden-aura/assets'
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
@@ -120,26 +126,28 @@ REST_FRAMEWORK = {
 
 CORS_ALLOWED_ORIGINS = os.getenv(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:8000,http://localhost:8080,http://127.0.0.1:8080"
+    "http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:8000,http://localhost:8080,http://127.0.0.1:8080,https://goldenaura.tech,https://www.goldenaura.tech"
 ).split(",")
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.app\.github\.dev$",
 ]
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = os.getenv(
     "CSRF_TRUSTED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:8000,http://localhost:8080,http://127.0.0.1:8080,https://*.app.github.dev"
+    "http://localhost:5173,http://127.0.0.1:5173,http://127.0.0.1:8000,http://localhost:8080,http://127.0.0.1:8080,https://*.app.github.dev,https://goldenaura.tech,https://www.goldenaura.tech"
 ).split(",")
 
-SECURE_COOKIES = os.getenv("DJANGO_SECURE_COOKIES", "true").lower() == "true"
+SECURE_COOKIES = os.getenv("DJANGO_SECURE_COOKIES", "false").lower() == "true"
 
-CSRF_COOKIE_SAMESITE = "None"
+AR_MIN_ENGAGED_SECONDS = int(os.getenv("AR_MIN_ENGAGED_SECONDS", "20"))
+
+CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = SECURE_COOKIES
-SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = SECURE_COOKIES
 
 CRONJOBS = [
-    ("*/1 * * * *", "django.core.management.call_command", ["rebuild_recommendations"]),
+    ("0 3 * * *", "django.core.management.call_command", ["rebuild_recommendations"]),
 ]

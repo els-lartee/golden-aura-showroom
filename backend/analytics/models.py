@@ -11,6 +11,9 @@ class Event(models.Model):
         ADD_TO_CART = "add_to_cart", "Add to Cart"
         REMOVE_FROM_CART = "remove_from_cart", "Remove from Cart"
         PURCHASE = "purchase", "Purchase"
+        AR_SESSION_START = "ar_session_start", "AR Session Start"
+        AR_SESSION_END = "ar_session_end", "AR Session End"
+        AR_SCREENSHOT = "ar_screenshot", "AR Screenshot"
 
     session_key = models.CharField(max_length=120, blank=True)
     user = models.ForeignKey(

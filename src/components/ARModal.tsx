@@ -1,6 +1,8 @@
 import { lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 
+import type { JewelryType } from "@/lib/jewelryConfig";
+
 const VirtualTryOn = lazy(() => import("@/components/VirtualTryOn"));
 
 /**
@@ -10,6 +12,8 @@ interface ARModalProps {
   isOpen: boolean;
   modelUrl?: string | null;
   productName?: string | null;
+  productId?: string | number | null;
+  jewelryType?: JewelryType;
   onClose: () => void;
 }
 
@@ -23,7 +27,7 @@ interface ARModalProps {
  * This component acts as a bridge between the product UI and
  * the fullscreen AR experience.
  */
-const ARModal = ({ isOpen, modelUrl, productName, onClose }: ARModalProps) => {
+const ARModal = ({ isOpen, modelUrl, productName, productId, jewelryType, onClose }: ARModalProps) => {
   // Don't render if not open or missing required data
   if (!isOpen || !modelUrl) {
     return null;
@@ -42,6 +46,8 @@ const ARModal = ({ isOpen, modelUrl, productName, onClose }: ARModalProps) => {
         <VirtualTryOn
           modelUrl={modelUrl}
           productName={productName || "AR Try-On"}
+          productId={productId}
+          jewelryType={jewelryType}
           onClose={onClose}
           className="h-full w-full rounded-none"
         />

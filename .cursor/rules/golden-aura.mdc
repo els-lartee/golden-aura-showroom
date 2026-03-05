@@ -1,0 +1,10 @@
+---
+alwaysApply: true
+---
+
+- Our backend is uv managed and it is in the /backend dir (/root/golden-aura-showroom/backend).
+- You can refer to the backedn readme to understand how to interact with it. It has commands and info on how to run common tasks.
+- The front end code is in the /root/golden-aura-showroom dir. It also contains a README you can refer to for assistance and deployment related information.
+- For the frontend, try to be as DRY as possible. Use components when designing pages so we can reuse them. 
+- For the backend, if you want to make changes, ask before you make them. 
+- You are free to make suggestions to improve things that are not being done well or not following best practices but you run them by me before doing that.
