@@ -132,6 +132,7 @@ export const VirtualTryOn = ({
           <JewelryModel
             modelUrl={modelUrl}
             landmarksRef={landmarksRef}
+            handednessRef={handednessRef}
             videoDimsRef={videoDimsRef}
             jewelryType={jewelryType}
           />

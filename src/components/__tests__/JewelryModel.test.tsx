@@ -214,3 +214,37 @@ describe("JewelryModel - anchor config", () => {
     expect(BRACELET_ANCHOR.scaleReferenceLandmarks).toEqual([0, 5]);
   });
 });
+
+describe("JewelryModel - ring clipping plane normals", () => {
+  const w = 1280, h = 960;
+  const makeLandmarks = () => {
+    const lms = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
+    lms[0] = { x: 0.5, y: 0.8, z: 0 };
+    lms[5] = { x: 0.35, y: 0.55, z: 0 };
+    lms[9] = { x: 0.45, y: 0.5, z: 0 };
+    lms[13] = { x: 0.55, y: 0.52, z: 0 };
+    lms[14] = { x: 0.56, y: 0.42, z: 0 };
+    lms[17] = { x: 0.65, y: 0.58, z: 0 };
+    return lms;
+  };
+
+  it("palm normal from quaternion Z-axis is unit length", () => {
+    const { quat } = buildBasis(makeLandmarks(), 13, 14, w, h);
+    const clipNormal = new Vector3(0, 0, 1).applyQuaternion(quat).normalize();
+    expect(clipNormal.length()).toBeCloseTo(1);
+  });
+
+  it("palm and back clip normals are opposite", () => {
+    const { quat } = buildBasis(makeLandmarks(), 13, 14, w, h);
+    const palmNormal = new Vector3(0, 0, 1).applyQuaternion(quat).normalize();
+    const backNormal = palmNormal.clone().negate();
+    expect(palmNormal.dot(backNormal)).toBeCloseTo(-1);
+  });
+
+  it("clip normal is perpendicular to bone direction", () => {
+    const { boneDir, quat } = buildBasis(makeLandmarks(), 13, 14, w, h);
+    const clipNormal = new Vector3(0, 0, 1).applyQuaternion(quat).normalize();
+    // The Z-axis of the basis (palmNormal) should be perpendicular to Y-axis (boneDir)
+    expect(clipNormal.dot(boneDir)).toBeCloseTo(0, 4);
+  });
+});

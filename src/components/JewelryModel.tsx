@@ -1,15 +1,20 @@
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import { Box3, Group, Matrix4, Quaternion, Sphere, Vector3 } from "three";
+import {
+  Box3, Group, Matrix4, Mesh, Plane, Quaternion, Sphere, Vector3,
+} from "three";
 import { OneEuroFilter, OneEuroFilter3, OneEuroFilter4 } from "@/lib/oneEuroFilter";
 import { getAnchorConfig, type JewelryType } from "@/lib/jewelryConfig";
+import { getPalmOrientation } from "@/lib/palmOrientation";
+import type { HandLabel } from "@/hooks/useHandTracking";
 
 export interface JewelryModelProps {
   modelUrl: string;
   landmarksRef: MutableRefObject<NormalizedLandmark[] | null>;
+  handednessRef: MutableRefObject<HandLabel | null>;
   videoDimsRef: MutableRefObject<{ width: number; height: number }>;
   jewelryType?: JewelryType;
   /** Override anchor config scaleFactor. */
@@ -32,9 +37,33 @@ function safeNormalize(v: Vector3, fallback: Vector3): Vector3 {
   return v.divideScalar(len);
 }
 
+/**
+ * Apply clipping planes to every mesh material inside a subtree.
+ * Materials are cloned so each half gets its own clipping config.
+ */
+function applyClipPlane(root: Group, clipPlane: Plane) {
+  root.traverse((node) => {
+    if (!(node instanceof Mesh) || !node.material) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    const cloned = mats.map((mat) => {
+      const next = mat.clone();
+      next.transparent = true;
+      next.opacity = 0.96;
+      next.depthWrite = true;
+      next.depthTest = true;
+      next.clippingPlanes = [clipPlane];
+      next.clipShadows = true;
+      next.needsUpdate = true;
+      return next;
+    });
+    node.material = Array.isArray(node.material) ? cloned : cloned[0];
+  });
+}
+
 export const JewelryModel = ({
   modelUrl,
   landmarksRef,
+  handednessRef,
   videoDimsRef,
   jewelryType = "ring",
   scaleFactor: scaleFactorOverride,
@@ -43,13 +72,31 @@ export const JewelryModel = ({
 }: JewelryModelProps) => {
   const config = getAnchorConfig(jewelryType);
   const scaleFactor = scaleFactorOverride ?? config.scaleFactor;
+  const isRing = jewelryType === "ring";
 
   const gltf = useGLTF(modelUrl);
-  const modelRef = useRef<Group>(null);
+  /** The wrapper group that receives all transforms (position/quaternion/scale). */
+  const wrapperRef = useRef<Group>(null);
   const normalizedScaleRef = useRef(1);
 
-  // Normalize model on load: scale so bounding-sphere diameter = 1, center at origin
+  // Enable local clipping on the renderer (needed for THREE.Plane clipping)
+  const { gl } = useThree();
   useEffect(() => {
+    gl.localClippingEnabled = true;
+  }, [gl]);
+
+  // -- Clipping plane state for ring halves --
+  const ringPalmClipPlane = useMemo(() => new Plane(new Vector3(0, 0, -1), 0), []);
+  const ringBackClipPlane = useMemo(() => new Plane(new Vector3(0, 0, 1), 0), []);
+  const palmHalfRef = useRef<Group | null>(null);
+  const backHalfRef = useRef<Group | null>(null);
+
+  // Normalize model on load; for rings, split into two clipped halves
+  // added as children of the wrapper group so they inherit transforms.
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
     const scene = gltf.scene;
     const bbox = new Box3().setFromObject(scene);
     const sphere = new Sphere();
@@ -58,7 +105,41 @@ export const JewelryModel = ({
 
     const center = bbox.getCenter(new Vector3());
     scene.position.sub(center);
-  }, [gltf.scene]);
+
+    // Clean up any previously-added clipped halves
+    if (palmHalfRef.current) {
+      wrapper.remove(palmHalfRef.current);
+      palmHalfRef.current = null;
+    }
+    if (backHalfRef.current) {
+      wrapper.remove(backHalfRef.current);
+      backHalfRef.current = null;
+    }
+
+    if (isRing) {
+      // Hide the original scene — we show the clipped halves instead
+      scene.visible = false;
+
+      // Clone into two halves with opposing clipping planes,
+      // mirroring the reference HTML's wrapper.add(palmHalf/backHalf) pattern.
+      const palmHalf = scene.clone(true);
+      const backHalf = scene.clone(true);
+      palmHalf.visible = true;
+      backHalf.visible = true;
+
+      applyClipPlane(palmHalf, ringPalmClipPlane);
+      applyClipPlane(backHalf, ringBackClipPlane);
+
+      // Add as children of the wrapper so they inherit position/quaternion/scale
+      wrapper.add(palmHalf);
+      wrapper.add(backHalf);
+
+      palmHalfRef.current = palmHalf;
+      backHalfRef.current = backHalf;
+    } else {
+      scene.visible = true;
+    }
+  }, [gltf.scene, isRing, ringPalmClipPlane, ringBackClipPlane]);
 
   // One Euro Filters
   const posFilter = useRef<OneEuroFilter3 | null>(null);
@@ -91,20 +172,21 @@ export const JewelryModel = ({
   const _tmpB = useMemo(() => new Vector3(), []);
   const _rotMat = useMemo(() => new Matrix4(), []);
   const _quat = useMemo(() => new Quaternion(), []);
+  const _clipNormal = useMemo(() => new Vector3(), []);
 
   useFrame(() => {
-    const model = modelRef.current;
+    const wrapper = wrapperRef.current;
     const landmarks = landmarksRef.current;
     const { width: w, height: h } = videoDimsRef.current;
-    if (!model || !landmarks || landmarks.length <= 17 || !w || !h) {
-      if (model) model.visible = false;
+    if (!wrapper || !landmarks || landmarks.length <= 17 || !w || !h) {
+      if (wrapper) wrapper.visible = false;
       posFilter.current?.reset();
       quatFilter.current?.reset();
       scaleFilter.current?.reset();
       return;
     }
 
-    model.visible = true;
+    wrapper.visible = true;
 
     // -- Position: average anchor landmarks in pixel coords --
     _pos.set(0, 0, 0);
@@ -163,19 +245,42 @@ export const JewelryModel = ({
     const t = performance.now() / 1000;
 
     const [fx, fy, fz] = posFilter.current!.filter(_pos.x, _pos.y, _pos.z, t);
-    model.position.set(fx, fy, fz);
+    wrapper.position.set(fx, fy, fz);
 
     const [qx, qy, qz, qw] = quatFilter.current!.filter(_quat.x, _quat.y, _quat.z, _quat.w, t);
-    model.quaternion.set(qx, qy, qz, qw).normalize();
+    wrapper.quaternion.set(qx, qy, qz, qw).normalize();
 
     const filteredScale = scaleFilter.current!.filter(targetScale, t);
     _scaleRef.setScalar(filteredScale);
-    model.scale.copy(_scaleRef);
+    wrapper.scale.copy(_scaleRef);
+
+    // -- Ring clipping: update planes and toggle halves --
+    if (isRing && palmHalfRef.current && backHalfRef.current) {
+      // Palm normal in world space (Z axis of the ring's orientation)
+      _clipNormal.set(0, 0, 1).applyQuaternion(wrapper.quaternion).normalize();
+
+      // Set clipping planes through the ring center
+      ringPalmClipPlane.setFromNormalAndCoplanarPoint(_clipNormal, wrapper.position);
+      ringBackClipPlane.setFromNormalAndCoplanarPoint(
+        _clipNormal.clone().negate(),
+        wrapper.position,
+      );
+
+      // Determine palm orientation and toggle which half is visible
+      const handedness = handednessRef.current ?? "Right";
+      const orientation = getPalmOrientation(landmarks, handedness);
+
+      // Back of hand → show front (palm-clipped) half
+      // Palm showing → show back-clipped half
+      const showFrontHalf = orientation === "Back";
+      palmHalfRef.current.visible = showFrontHalf;
+      backHalfRef.current.visible = !showFrontHalf;
+    }
   });
 
   return (
-    <group renderOrder={1}>
-      <primitive ref={modelRef} object={gltf.scene} dispose={null} />
+    <group ref={wrapperRef} renderOrder={1}>
+      <primitive object={gltf.scene} dispose={null} />
     </group>
   );
 };
